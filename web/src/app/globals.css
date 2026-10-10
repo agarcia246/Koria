@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --koria-ink: #0a0a0a;
+  --koria-charcoal: #141414;
+  --koria-elevated: #181818;
+  --koria-ivory: #f5f1e8;
+  --koria-paper: #fafaf7;
+  --koria-silver: #a8a49c;
+  --koria-warm: #6b6660;
+  --koria-champagne: #c8b88a;
+  --background: var(--koria-paper);
+  --foreground: var(--koria-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ink: var(--koria-ink);
+  --color-charcoal: var(--koria-charcoal);
+  --color-elevated: var(--koria-elevated);
+  --color-ivory: var(--koria-ivory);
+  --color-paper: var(--koria-paper);
+  --color-silver: var(--koria-silver);
+  --color-warm: var(--koria-warm);
+  --color-champagne: var(--koria-champagne);
+  --font-sans: var(--font-ui);
+  --font-display: var(--font-instrument);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--koria-paper);
+  color: var(--koria-ink);
+  font-family: var(--font-ui), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-instrument), ui-serif, Georgia, serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}

@@ -1,0 +1,17 @@
+.DS_Store
+xcuserdata/
+DerivedData/
+build/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+.swiftpm/
+.env
+.env.*
+*.moved-aside
+Koria.xcodeproj/project.xcworkspace/xcuserdata/
+Koria.xcodeproj/xcuserdata/

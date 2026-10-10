@@ -1,0 +1,618 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		10E4FA03B9B96D2A84E1EAF7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 550E8351004F64D0E681CDF2 /* RootView.swift */; };
+		1F703176A8D21A4AAE9EE642 /* LiveKoriaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28DE6357656D52C2671FB8E9 /* LiveKoriaClient.swift */; };
+		205131C3F8A6F54099F6536C /* KoriaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D2BAB16CC9FECBA6137152 /* KoriaApp.swift */; };
+		29F39EEBAAF5FE5DCCC5C064 /* MockCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDB1A72A6ABEBE6BDB2B047 /* MockCatalog.swift */; };
+		2C83528C64155FD948FD4AA0 /* KoriaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30E7FA2575A5F37BE81AFF1 /* KoriaTheme.swift */; };
+		2D6843A956D1E0B3BB12A570 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 353CC6BDC9F0298C17A9F686 /* KeychainStore.swift */; };
+		3743B70EAEB27E6AF18C92D5 /* PassportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED016A522B7A36E398BE5F8A /* PassportView.swift */; };
+		388188B41DB0E7593CFA4F13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F02460073A9F4CF6F2397A0B /* Assets.xcassets */; };
+		3F527936C663D7988FB6C5F3 /* InstrumentSerif-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E5B71EE53806EB2D899A046A /* InstrumentSerif-Regular.ttf */; };
+		411A01235F97F2109C7189B3 /* CompareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB33290450C672099888EFF /* CompareView.swift */; };
+		49C634AF117A99B01497155D /* SearchHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81154AC0F6D51D43FAD2D18 /* SearchHomeView.swift */; };
+		5C543098E227F6129B66BE21 /* KoriaMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7464A1260FACB74C7484C /* KoriaMark.swift */; };
+		617D2BDF17E29F7D0A33560D /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C708DE50641ADAD7C3C775E /* AppConfig.swift */; };
+		6915B312F9D2697DC26BB96A /* SearchResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252DBE3B6265C5D865578F4F /* SearchResultsView.swift */; };
+		6DA591D46559A32F8032450F /* EmptyLegsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE0EE8ED9BB860BB60587FAF /* EmptyLegsView.swift */; };
+		7CF6E42AFD5389732B03FAB2 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82FF447A17E09B684D531132 /* AppStore.swift */; };
+		81F118B9A59A395D9F5B0DD8 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D680544913CA64234AFC31A /* MainTabView.swift */; };
+		9FBCBFBDAE0AED1288C9908C /* MockKoriaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5294018DD044E6FC84A4D6 /* MockKoriaClient.swift */; };
+		A645454CFD5EF88D35876D1A /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CE4E03C01662C77705C77A /* Models.swift */; };
+		B7520982606EA330AF14F3EB /* TripsInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F750F3602DC54A30AE3100D /* TripsInboxView.swift */; };
+		BAE30CD1BF51304E01573A9C /* SearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B99C6095273A82023B268BF /* SearchViewModel.swift */; };
+		BE4E4DEBEAFC66F670E50801 /* AirportPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE00EEA90D4FDE4AD715015C /* AirportPickerView.swift */; };
+		C0BC3AB321E15CCF9B5859A1 /* TripRequestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ED79D0A9824546ACCAF5DAF /* TripRequestView.swift */; };
+		CFC681DDBCC550619758505D /* AircraftDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 332DC8B6BE5679F75ECF82E1 /* AircraftDetailView.swift */; };
+		D679532DB6A34D62DCCFFED2 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE5B2D64DB65E648AC6659D2 /* AuthView.swift */; };
+		D6DB29F09994E7741F497C5B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 41A0E516CE5860BD4888DA99 /* Supabase */; };
+		DB93FCDE65A1BD8A727AEEEC /* KoriaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 663D151EBD625D1853C439C9 /* KoriaClient.swift */; };
+		E2DCCDFF34DE06D760121525 /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76067BB263B7DB5D2970F10 /* AppSession.swift */; };
+		F315906B19B87E3C41C50296 /* KoriaComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 775B0D557B478987392A816F /* KoriaComponents.swift */; };
+		FE3319C86DBDBFE3AF83D6BB /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E4DD451468E896B17081063 /* AuthService.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		03CE4E03C01662C77705C77A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		0B3D56B5049F1DC50D6ABE57 /* Koria.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Koria.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1C708DE50641ADAD7C3C775E /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		1ED79D0A9824546ACCAF5DAF /* TripRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripRequestView.swift; sourceTree = "<group>"; };
+		252DBE3B6265C5D865578F4F /* SearchResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsView.swift; sourceTree = "<group>"; };
+		28DE6357656D52C2671FB8E9 /* LiveKoriaClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveKoriaClient.swift; sourceTree = "<group>"; };
+		2D680544913CA64234AFC31A /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		332DC8B6BE5679F75ECF82E1 /* AircraftDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AircraftDetailView.swift; sourceTree = "<group>"; };
+		353CC6BDC9F0298C17A9F686 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		3B99C6095273A82023B268BF /* SearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewModel.swift; sourceTree = "<group>"; };
+		3E4DD451468E896B17081063 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		3EB33290450C672099888EFF /* CompareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareView.swift; sourceTree = "<group>"; };
+		3F5294018DD044E6FC84A4D6 /* MockKoriaClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockKoriaClient.swift; sourceTree = "<group>"; };
+		3FDB1A72A6ABEBE6BDB2B047 /* MockCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockCatalog.swift; sourceTree = "<group>"; };
+		43D2BAB16CC9FECBA6137152 /* KoriaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaApp.swift; sourceTree = "<group>"; };
+		550E8351004F64D0E681CDF2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		663D151EBD625D1853C439C9 /* KoriaClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaClient.swift; sourceTree = "<group>"; };
+		6F750F3602DC54A30AE3100D /* TripsInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsInboxView.swift; sourceTree = "<group>"; };
+		775B0D557B478987392A816F /* KoriaComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaComponents.swift; sourceTree = "<group>"; };
+		82FF447A17E09B684D531132 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
+		B76067BB263B7DB5D2970F10 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		C9B7464A1260FACB74C7484C /* KoriaMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaMark.swift; sourceTree = "<group>"; };
+		CE0EE8ED9BB860BB60587FAF /* EmptyLegsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyLegsView.swift; sourceTree = "<group>"; };
+		CE4B194630806A1E5A275BFA /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		DE00EEA90D4FDE4AD715015C /* AirportPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirportPickerView.swift; sourceTree = "<group>"; };
+		E30E7FA2575A5F37BE81AFF1 /* KoriaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaTheme.swift; sourceTree = "<group>"; };
+		E5B71EE53806EB2D899A046A /* InstrumentSerif-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "InstrumentSerif-Regular.ttf"; sourceTree = "<group>"; };
+		E81154AC0F6D51D43FAD2D18 /* SearchHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHomeView.swift; sourceTree = "<group>"; };
+		ED016A522B7A36E398BE5F8A /* PassportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassportView.swift; sourceTree = "<group>"; };
+		F02460073A9F4CF6F2397A0B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FE5B2D64DB65E648AC6659D2 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FD56370B3F43632F15DF6850 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D6DB29F09994E7741F497C5B /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1C1393EBC95EB6A2C28B21E9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0B3D56B5049F1DC50D6ABE57 /* Koria.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		25C17C6CFD324BC95EED1A5D /* EmptyLegs */ = {
+			isa = PBXGroup;
+			children = (
+				CE0EE8ED9BB860BB60587FAF /* EmptyLegsView.swift */,
+			);
+			path = EmptyLegs;
+			sourceTree = "<group>";
+		};
+		26F049C4EF276ED58B794CEB /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				03CE4E03C01662C77705C77A /* Models.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		2F8B436EAE27007740F50A87 /* Aircraft */ = {
+			isa = PBXGroup;
+			children = (
+				332DC8B6BE5679F75ECF82E1 /* AircraftDetailView.swift */,
+			);
+			path = Aircraft;
+			sourceTree = "<group>";
+		};
+		493FDF47B25B4F694ACA7230 /* Compare */ = {
+			isa = PBXGroup;
+			children = (
+				3EB33290450C672099888EFF /* CompareView.swift */,
+			);
+			path = Compare;
+			sourceTree = "<group>";
+		};
+		501B075CC475D60551CEDF3B /* Trips */ = {
+			isa = PBXGroup;
+			children = (
+				6F750F3602DC54A30AE3100D /* TripsInboxView.swift */,
+			);
+			path = Trips;
+			sourceTree = "<group>";
+		};
+		53096B356211DE4334C4E6C5 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				775B0D557B478987392A816F /* KoriaComponents.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		5D6C28F792E20B20A6858E7B /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				DE00EEA90D4FDE4AD715015C /* AirportPickerView.swift */,
+				E81154AC0F6D51D43FAD2D18 /* SearchHomeView.swift */,
+				3B99C6095273A82023B268BF /* SearchViewModel.swift */,
+			);
+			path = Search;
+			sourceTree = "<group>";
+		};
+		6A30B4C6FC6A2FDC756538FF /* Passport */ = {
+			isa = PBXGroup;
+			children = (
+				ED016A522B7A36E398BE5F8A /* PassportView.swift */,
+			);
+			path = Passport;
+			sourceTree = "<group>";
+		};
+		6D0F35DF14B4E1A3BB6F2A40 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E1023F86D3583D034F007416 /* Fonts */,
+				F02460073A9F4CF6F2397A0B /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		6E53FF889A8906AED7AE34CE /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				1C708DE50641ADAD7C3C775E /* AppConfig.swift */,
+				3E4DD451468E896B17081063 /* AuthService.swift */,
+				353CC6BDC9F0298C17A9F686 /* KeychainStore.swift */,
+				663D151EBD625D1853C439C9 /* KoriaClient.swift */,
+				28DE6357656D52C2671FB8E9 /* LiveKoriaClient.swift */,
+				3FDB1A72A6ABEBE6BDB2B047 /* MockCatalog.swift */,
+				3F5294018DD044E6FC84A4D6 /* MockKoriaClient.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		793C1FFDB81215A16FDCE024 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B76067BB263B7DB5D2970F10 /* AppSession.swift */,
+				82FF447A17E09B684D531132 /* AppStore.swift */,
+				43D2BAB16CC9FECBA6137152 /* KoriaApp.swift */,
+				2D680544913CA64234AFC31A /* MainTabView.swift */,
+				550E8351004F64D0E681CDF2 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		89C73C1700E4B32050F7D05B /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				53096B356211DE4334C4E6C5 /* Components */,
+				C9B7464A1260FACB74C7484C /* KoriaMark.swift */,
+				E30E7FA2575A5F37BE81AFF1 /* KoriaTheme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		A01DD393171A1B0EDD36724B /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				2F8B436EAE27007740F50A87 /* Aircraft */,
+				ECDA875D6A4C4DD2425F5924 /* Auth */,
+				493FDF47B25B4F694ACA7230 /* Compare */,
+				25C17C6CFD324BC95EED1A5D /* EmptyLegs */,
+				6A30B4C6FC6A2FDC756538FF /* Passport */,
+				FB0993627D3C92F227E434F3 /* Request */,
+				DC3F1DE1603D0DE097DE21CD /* Results */,
+				5D6C28F792E20B20A6858E7B /* Search */,
+				501B075CC475D60551CEDF3B /* Trips */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		AAA3125896D3210943A96F3E = {
+			isa = PBXGroup;
+			children = (
+				D581753B0261F7D93288F540 /* Koria */,
+				1C1393EBC95EB6A2C28B21E9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D581753B0261F7D93288F540 /* Koria */ = {
+			isa = PBXGroup;
+			children = (
+				793C1FFDB81215A16FDCE024 /* App */,
+				89C73C1700E4B32050F7D05B /* DesignSystem */,
+				26F049C4EF276ED58B794CEB /* Domain */,
+				A01DD393171A1B0EDD36724B /* Features */,
+				6E53FF889A8906AED7AE34CE /* Networking */,
+				6D0F35DF14B4E1A3BB6F2A40 /* Resources */,
+				CE4B194630806A1E5A275BFA /* Config.xcconfig */,
+			);
+			path = Koria;
+			sourceTree = "<group>";
+		};
+		DC3F1DE1603D0DE097DE21CD /* Results */ = {
+			isa = PBXGroup;
+			children = (
+				252DBE3B6265C5D865578F4F /* SearchResultsView.swift */,
+			);
+			path = Results;
+			sourceTree = "<group>";
+		};
+		E1023F86D3583D034F007416 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				E5B71EE53806EB2D899A046A /* InstrumentSerif-Regular.ttf */,
+			);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		ECDA875D6A4C4DD2425F5924 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				FE5B2D64DB65E648AC6659D2 /* AuthView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		FB0993627D3C92F227E434F3 /* Request */ = {
+			isa = PBXGroup;
+			children = (
+				1ED79D0A9824546ACCAF5DAF /* TripRequestView.swift */,
+			);
+			path = Request;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D58D790A246C035DFD0AE0EB /* Koria */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 160221E75E616DE91B8CC9DC /* Build configuration list for PBXNativeTarget "Koria" */;
+			buildPhases = (
+				73BD2EF0D8DD11B49BAAF05C /* Sources */,
+				592BA8AED6566E5A091C0D05 /* Resources */,
+				FD56370B3F43632F15DF6850 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Koria;
+			packageProductDependencies = (
+				41A0E516CE5860BD4888DA99 /* Supabase */,
+			);
+			productName = Koria;
+			productReference = 0B3D56B5049F1DC50D6ABE57 /* Koria.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C562E80596FC5FFA202C5244 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					D58D790A246C035DFD0AE0EB = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 52D03BAA4DA607A77E484C77 /* Build configuration list for PBXProject "Koria" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = AAA3125896D3210943A96F3E;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C83A4BFB23FEE52F88C10564 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1C1393EBC95EB6A2C28B21E9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D58D790A246C035DFD0AE0EB /* Koria */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		592BA8AED6566E5A091C0D05 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				388188B41DB0E7593CFA4F13 /* Assets.xcassets in Resources */,
+				3F527936C663D7988FB6C5F3 /* InstrumentSerif-Regular.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		73BD2EF0D8DD11B49BAAF05C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CFC681DDBCC550619758505D /* AircraftDetailView.swift in Sources */,
+				BE4E4DEBEAFC66F670E50801 /* AirportPickerView.swift in Sources */,
+				617D2BDF17E29F7D0A33560D /* AppConfig.swift in Sources */,
+				E2DCCDFF34DE06D760121525 /* AppSession.swift in Sources */,
+				7CF6E42AFD5389732B03FAB2 /* AppStore.swift in Sources */,
+				FE3319C86DBDBFE3AF83D6BB /* AuthService.swift in Sources */,
+				D679532DB6A34D62DCCFFED2 /* AuthView.swift in Sources */,
+				411A01235F97F2109C7189B3 /* CompareView.swift in Sources */,
+				6DA591D46559A32F8032450F /* EmptyLegsView.swift in Sources */,
+				2D6843A956D1E0B3BB12A570 /* KeychainStore.swift in Sources */,
+				205131C3F8A6F54099F6536C /* KoriaApp.swift in Sources */,
+				DB93FCDE65A1BD8A727AEEEC /* KoriaClient.swift in Sources */,
+				F315906B19B87E3C41C50296 /* KoriaComponents.swift in Sources */,
+				5C543098E227F6129B66BE21 /* KoriaMark.swift in Sources */,
+				2C83528C64155FD948FD4AA0 /* KoriaTheme.swift in Sources */,
+				1F703176A8D21A4AAE9EE642 /* LiveKoriaClient.swift in Sources */,
+				81F118B9A59A395D9F5B0DD8 /* MainTabView.swift in Sources */,
+				29F39EEBAAF5FE5DCCC5C064 /* MockCatalog.swift in Sources */,
+				9FBCBFBDAE0AED1288C9908C /* MockKoriaClient.swift in Sources */,
+				A645454CFD5EF88D35876D1A /* Models.swift in Sources */,
+				3743B70EAEB27E6AF18C92D5 /* PassportView.swift in Sources */,
+				10E4FA03B9B96D2A84E1EAF7 /* RootView.swift in Sources */,
+				49C634AF117A99B01497155D /* SearchHomeView.swift in Sources */,
+				6915B312F9D2697DC26BB96A /* SearchResultsView.swift in Sources */,
+				BAE30CD1BF51304E01573A9C /* SearchViewModel.swift in Sources */,
+				C0BC3AB321E15CCF9B5859A1 /* TripRequestView.swift in Sources */,
+				B7520982606EA330AF14F3EB /* TripsInboxView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2B8E0EF96B651850DA975480 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = S95DC78UWJ;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		52612E4FEEF771D9E70DBB82 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = CE4B194630806A1E5A275BFA /* Config.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Koria/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = KORIA;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = travel.koria.app;
+				PRODUCT_NAME = Koria;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		68DE6260085DBD892F1DFDD7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = CE4B194630806A1E5A275BFA /* Config.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Koria/Resources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = KORIA;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = travel.koria.app;
+				PRODUCT_NAME = Koria;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		EEFDB23877DE8D905DABB004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = S95DC78UWJ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		160221E75E616DE91B8CC9DC /* Build configuration list for PBXNativeTarget "Koria" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				52612E4FEEF771D9E70DBB82 /* Debug */,
+				68DE6260085DBD892F1DFDD7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		52D03BAA4DA607A77E484C77 /* Build configuration list for PBXProject "Koria" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EEFDB23877DE8D905DABB004 /* Debug */,
+				2B8E0EF96B651850DA975480 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C83A4BFB23FEE52F88C10564 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		41A0E516CE5860BD4888DA99 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C83A4BFB23FEE52F88C10564 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C562E80596FC5FFA202C5244 /* Project object */;
+}
