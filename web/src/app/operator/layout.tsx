@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { PortalFlash } from "@/components/portal-flash";
+import { safeDecode } from "@/lib/portal/flash";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/portal/actions";
 
@@ -27,6 +30,9 @@ export default async function OperatorLayout({ children }: { children: React.Rea
 
   if (profile?.role !== "operator" && profile?.role !== "admin") redirect("/login");
 
+  const rawFlash = (await cookies()).get("portal_error")?.value;
+  const flash = rawFlash ? safeDecode(rawFlash) : undefined;
+
   return (
     <div className="min-h-screen bg-paper text-ink flex">
       <aside className="w-56 border-r border-silver/40 bg-ivory px-4 py-6 shrink-0">
@@ -49,7 +55,10 @@ export default async function OperatorLayout({ children }: { children: React.Rea
           </button>
         </form>
       </aside>
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
+      <main className="flex-1 p-8 overflow-auto">
+        <PortalFlash message={flash} />
+        {children}
+      </main>
     </div>
   );
 }

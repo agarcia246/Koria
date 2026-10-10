@@ -15,6 +15,7 @@ import {
   nextStatusOnQuoteSent,
 } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
+import { assertWrite } from "@/lib/portal/write";
 
 export async function signOut() {
   const supabase = await createClient();
@@ -51,7 +52,8 @@ export async function createAircraft(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  await assertWrite("aircraft", error, "/operator/fleet/new");
+  if (!data) throw new Error("Failed to create aircraft");
   revalidatePath("/operator/fleet");
   redirect(`/operator/fleet/${data.id}`);
 }
@@ -81,7 +83,7 @@ export async function updateAircraft(aircraftId: string, formData: FormData) {
     })
     .eq("id", aircraftId);
 
-  if (error) throw new Error(error.message);
+  await assertWrite("aircraft", error, `/operator/fleet/${aircraftId}`);
   revalidatePath(`/operator/fleet/${aircraftId}`);
   revalidatePath("/operator/fleet");
 }
@@ -98,13 +100,14 @@ export async function uploadAircraftPhoto(aircraftId: string, formData: FormData
   const { error: uploadError } = await ctx.supabase.storage
     .from("aircraft-photos")
     .upload(path, buffer, { contentType: file.type, upsert: false });
-  if (uploadError) throw new Error(uploadError.message);
+  await assertWrite("aircraft-photos", uploadError, `/operator/fleet/${aircraftId}`);
 
-  await ctx.supabase.from("aircraft_photos").insert({
+  const { error: photoError } = await ctx.supabase.from("aircraft_photos").insert({
     aircraft_id: aircraftId,
     storage_path: path,
     sort_order: Number(formData.get("sort_order") || 0),
   });
+  await assertWrite("aircraft_photos", photoError, `/operator/fleet/${aircraftId}`);
 
   revalidatePath(`/operator/fleet/${aircraftId}`);
 }
@@ -128,18 +131,17 @@ export async function upsertPricing(aircraftId: string, formData: FormData) {
     .eq("aircraft_id", aircraftId)
     .maybeSingle();
 
-  if (existing) {
-    await ctx.supabase.from("aircraft_pricing_rules").update(payload).eq("id", existing.id);
-  } else {
-    await ctx.supabase.from("aircraft_pricing_rules").insert(payload);
-  }
+  const { error } = existing
+    ? await ctx.supabase.from("aircraft_pricing_rules").update(payload).eq("id", existing.id)
+    : await ctx.supabase.from("aircraft_pricing_rules").insert(payload);
+  await assertWrite("aircraft_pricing_rules", error, `/operator/fleet/${aircraftId}/pricing`);
 
   revalidatePath(`/operator/fleet/${aircraftId}/pricing`);
 }
 
 export async function createAvailability(formData: FormData) {
   const ctx = await requireOperatorContext();
-  await ctx.supabase.from("aircraft_availability").insert({
+  const { error } = await ctx.supabase.from("aircraft_availability").insert({
     aircraft_id: String(formData.get("aircraft_id")),
     starts_at: String(formData.get("starts_at")),
     ends_at: String(formData.get("ends_at")),
@@ -147,6 +149,7 @@ export async function createAvailability(formData: FormData) {
     based_at_id: String(formData.get("based_at_id") || "") || null,
     notes: String(formData.get("notes") || "") || null,
   });
+  await assertWrite("aircraft_availability", error, "/operator/availability");
   revalidatePath("/operator/availability");
 }
 
@@ -154,7 +157,7 @@ export async function createEmptyLeg(formData: FormData) {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) throw new Error("No operator");
 
-  await ctx.supabase.from("empty_legs").insert({
+  const { error } = await ctx.supabase.from("empty_legs").insert({
     operator_id: ctx.operatorId,
     aircraft_id: String(formData.get("aircraft_id")),
     origin_id: String(formData.get("origin_id")),
@@ -169,12 +172,13 @@ export async function createEmptyLeg(formData: FormData) {
     notes: String(formData.get("notes") || "") || null,
     status: "published",
   });
+  await assertWrite("empty_legs", error, "/operator/empty-legs");
   revalidatePath("/operator/empty-legs");
 }
 
 export async function updateEmptyLeg(id: string, formData: FormData) {
   const ctx = await requireOperatorContext();
-  await ctx.supabase
+  const { error } = await ctx.supabase
     .from("empty_legs")
     .update({
       aircraft_id: String(formData.get("aircraft_id")),
@@ -190,12 +194,14 @@ export async function updateEmptyLeg(id: string, formData: FormData) {
       notes: String(formData.get("notes") || "") || null,
     })
     .eq("id", id);
+  await assertWrite("empty_legs", error, "/operator/empty-legs");
   revalidatePath("/operator/empty-legs");
 }
 
 export async function withdrawEmptyLeg(id: string) {
   const ctx = await requireOperatorContext();
-  await ctx.supabase.from("empty_legs").update({ status: "withdrawn" }).eq("id", id);
+  const { error } = await ctx.supabase.from("empty_legs").update({ status: "withdrawn" }).eq("id", id);
+  await assertWrite("empty_legs", error, "/operator/empty-legs");
   revalidatePath("/operator/empty-legs");
 }
 
@@ -263,7 +269,7 @@ export async function acceptPrice(tripId: string) {
   const customerTotal = priced.amount + fee.platformFeeAmount + taxes;
   const snapshot = await carrierSnapshot(ctx.supabase, ctx.operatorId);
 
-  await ctx.supabase.from("quotes").insert({
+  const { error: quoteError } = await ctx.supabase.from("quotes").insert({
     trip_request_id: tripId,
     operator_id: ctx.operatorId,
     aircraft_id: aircraft.id,
@@ -278,10 +284,15 @@ export async function acceptPrice(tripId: string) {
     pricing_mode: priced.mode,
     carrier_disclosure_snapshot: snapshot,
   });
+  await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
 
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
-    await ctx.supabase.from("trip_requests").update({ status: next }).eq("id", tripId);
+    const { error: statusError } = await ctx.supabase
+      .from("trip_requests")
+      .update({ status: next })
+      .eq("id", tripId);
+    await assertWrite("trip_requests", statusError, `/operator/requests/${tripId}`);
   }
 
   revalidatePath(`/operator/requests/${tripId}`);
@@ -314,7 +325,7 @@ export async function sendQuote(tripId: string, formData: FormData) {
   const customerTotal = operatorAmount + fee.platformFeeAmount + taxes;
   const snapshot = await carrierSnapshot(ctx.supabase, ctx.operatorId);
 
-  await ctx.supabase.from("quotes").insert({
+  const { error: quoteError } = await ctx.supabase.from("quotes").insert({
     trip_request_id: tripId,
     operator_id: ctx.operatorId,
     aircraft_id: aircraftId,
@@ -330,14 +341,23 @@ export async function sendQuote(tripId: string, formData: FormData) {
     pricing_mode: "quote_required",
     carrier_disclosure_snapshot: snapshot,
   });
+  await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
 
   if (isCounter && parentQuoteId) {
-    await ctx.supabase.from("quotes").update({ status: "countered" }).eq("id", parentQuoteId);
+    const { error: counterError } = await ctx.supabase
+      .from("quotes")
+      .update({ status: "countered" })
+      .eq("id", parentQuoteId);
+    await assertWrite("quotes", counterError, `/operator/requests/${tripId}`);
   }
 
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
-    await ctx.supabase.from("trip_requests").update({ status: next }).eq("id", tripId);
+    const { error: statusError } = await ctx.supabase
+      .from("trip_requests")
+      .update({ status: next })
+      .eq("id", tripId);
+    await assertWrite("trip_requests", statusError, `/operator/requests/${tripId}`);
   }
 
   revalidatePath(`/operator/requests/${tripId}`);
@@ -354,7 +374,8 @@ export async function declineRequest(tripId: string) {
   if (!trip) throw new Error("Trip not found");
 
   const next = nextStatusOnOperatorDecline(trip.status);
-  await ctx.supabase.from("trip_requests").update({ status: next }).eq("id", tripId);
+  const { error } = await ctx.supabase.from("trip_requests").update({ status: next }).eq("id", tripId);
+  await assertWrite("trip_requests", error, `/operator/requests/${tripId}`);
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/requests");
 }
@@ -384,16 +405,18 @@ export async function adminReviewAccess(
     .single();
   if (!req) throw new Error("Not found");
 
-  await service
+  const { error: reviewError } = await service
     .from("access_requests")
     .update({ status: decision, reviewed_by: user.id })
     .eq("id", requestId);
+  await assertWrite("access_requests", reviewError, "/admin/access");
 
   if (req.user_id) {
-    await service
+    const { error: profileError } = await service
       .from("profiles")
       .update({ access_status: decision })
       .eq("id", req.user_id);
+    await assertWrite("profiles", profileError, "/admin/access");
   }
 
   revalidatePath("/admin/access");
@@ -414,13 +437,14 @@ export async function adminInviteAccess(formData: FormData) {
   if (profile?.role !== "admin") throw new Error("Admin only");
 
   const email = String(formData.get("email")).trim().toLowerCase();
-  await service.from("access_requests").insert({
+  const { error: inviteRowError } = await service.from("access_requests").insert({
     email,
     status: "invited",
     reviewed_by: user.id,
     invite_code: crypto.randomUUID().slice(0, 8),
     note: "Invited by admin",
   });
+  await assertWrite("access_requests", inviteRowError, "/admin/access");
 
   // If user already exists, approve immediately
   const { data: existing } = await service
@@ -429,10 +453,11 @@ export async function adminInviteAccess(formData: FormData) {
     .eq("email", email)
     .maybeSingle();
   if (existing) {
-    await service
+    const { error: approveError } = await service
       .from("profiles")
       .update({ access_status: "approved" })
       .eq("id", existing.id);
+    await assertWrite("profiles", approveError, "/admin/access");
   }
 
   revalidatePath("/admin/access");
@@ -473,7 +498,8 @@ export async function adminCreateOperator(formData: FormData) {
     .select("*")
     .single();
 
-  if (error || !operator) throw new Error(error?.message ?? "Failed");
+  await assertWrite("operators", error, "/admin/operators");
+  if (!operator) throw new Error("Failed to create operator");
 
   const inviteEmail = String(formData.get("invite_email") || "").trim().toLowerCase();
   if (inviteEmail) {
@@ -487,25 +513,29 @@ export async function adminCreateOperator(formData: FormData) {
       const { data: list } = await service.auth.admin.listUsers({ perPage: 1000 });
       const found = list?.users?.find((u) => u.email?.toLowerCase() === inviteEmail);
       if (!found) throw new Error(inviteError.message);
-      await service
+      const { error: roleError } = await service
         .from("profiles")
         .update({ role: "operator", access_status: "approved" })
         .eq("id", found.id);
-      await service.from("operator_members").insert({
+      await assertWrite("profiles", roleError, "/admin/operators");
+      const { error: memberError } = await service.from("operator_members").insert({
         operator_id: operator.id,
         profile_id: found.id,
         role: "admin",
       });
+      await assertWrite("operator_members", memberError, "/admin/operators");
     } else if (invited.user) {
-      await service
+      const { error: roleError } = await service
         .from("profiles")
         .update({ role: "operator", access_status: "approved" })
         .eq("id", invited.user.id);
-      await service.from("operator_members").insert({
+      await assertWrite("profiles", roleError, "/admin/operators");
+      const { error: memberError } = await service.from("operator_members").insert({
         operator_id: operator.id,
         profile_id: invited.user.id,
         role: "admin",
       });
+      await assertWrite("operator_members", memberError, "/admin/operators");
       await service.auth.admin.generateLink({
         type: "magiclink",
         email: inviteEmail,
@@ -545,8 +575,16 @@ export async function adminMarkPaid(bookingId: string) {
   if (!trip) throw new Error("Trip not found");
 
   const next = nextStatusOnMarkPaid(trip.status);
-  await service.from("bookings").update({ status: "confirmed" }).eq("id", bookingId);
-  await service.from("trip_requests").update({ status: next }).eq("id", trip.id);
+  const { error: bookingError } = await service
+    .from("bookings")
+    .update({ status: "confirmed" })
+    .eq("id", bookingId);
+  await assertWrite("bookings", bookingError, `/admin/bookings/${bookingId}`);
+  const { error: tripError } = await service
+    .from("trip_requests")
+    .update({ status: next })
+    .eq("id", trip.id);
+  await assertWrite("trip_requests", tripError, `/admin/bookings/${bookingId}`);
 
   revalidatePath("/admin/bookings");
   revalidatePath(`/admin/bookings/${bookingId}`);
