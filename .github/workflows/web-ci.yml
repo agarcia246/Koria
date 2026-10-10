@@ -48,7 +48,7 @@ jobs:
 
   migrations:
     name: migrations on a throwaway database
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -60,4 +60,11 @@ jobs:
           version: 2.107.0
 
       - name: Apply migrations
-        run: supabase db reset --local --yes
+        run: |
+          set +e
+          supabase db reset --local > /tmp/reset.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            echo "::error title=migration reset::$(tail -n 30 /tmp/reset.log | tr '\n' ' ' | cut -c1-800)"
+            exit "$code"
+          fi
