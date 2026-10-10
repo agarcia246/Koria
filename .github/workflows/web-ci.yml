@@ -62,9 +62,15 @@ jobs:
       - name: Apply migrations
         run: |
           set +e
-          supabase db reset --local > /tmp/reset.log 2>&1
+          supabase start > /tmp/reset.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
-            echo "::error title=migration reset::$(tail -n 30 /tmp/reset.log | tr '\n' ' ' | cut -c1-800)"
+            echo "::error title=supabase start::$(tail -n 40 /tmp/reset.log | tr '\n' ' ' | cut -c1-800)"
+            exit "$code"
+          fi
+          supabase db reset --local >> /tmp/reset.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            echo "::error title=migration reset::$(tail -n 40 /tmp/reset.log | tr '\n' ' ' | cut -c1-800)"
             exit "$code"
           fi
