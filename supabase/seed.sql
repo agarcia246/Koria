@@ -1,10 +1,17 @@
 -- Reference seed. Safe for production.
--- Airports and aircraft models only.
+-- Airports, aircraft models, and the global platform fee.
 --
 -- Demo operators, fleet, accounts, and trips live in seed.demo.sql.
 -- Local `supabase db reset` loads this file, then seed.demo.sql (config.toml).
 -- Apply this file to production. Do not apply seed.demo.sql to production.
 -- Staging may load both so the portals have data to exercise.
+
+-- Global platform fee: 1000 bps = 10%. Reference config, not demo data.
+-- Resolved at quote time from this table — never hard-coded in app logic.
+-- Operator-scoped overrides stay in seed.demo.sql because they point at demo operators.
+insert into public.platform_fee_rules (id, scope, bps, effective_from)
+values ('33333333-3333-3333-3333-333333330001', 'global', 1000, now())
+on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- Airports (from app/Hopp/Networking/MockCatalog.swift)

@@ -1,13 +1,8 @@
 -- Demo seed. Do not apply to production.
--- Operators, fleet, empty legs, platform fee rules, accounts, and trips.
--- Depends on airports and aircraft models from seed.sql.
+-- Operators, fleet, empty legs, operator-scoped fee overrides, accounts, and trips.
+-- Depends on airports, aircraft models, and the global platform fee from seed.sql.
 -- Demo logins use password: koria-demo
 -- The operator portal (/admin/operators) is still the real onboarding path.
-
--- Global platform fee: 1000 bps = 10%. Resolved at quote time from this table — never hard-coded in app logic.
-insert into public.platform_fee_rules (id, scope, bps, effective_from)
-values ('33333333-3333-3333-3333-333333330001', 'global', 1000, now())
-on conflict (id) do nothing;
 
 -- Optional local demo operator (portal /admin/operators is the real path).
 insert into public.operators (
