@@ -1,5 +1,9 @@
 import type { EmailTemplate, EmailTemplateData, RenderedEmail } from "@/lib/email/types";
 
+function roleLabel(role: "admin" | "member"): string {
+  return role === "admin" ? "an admin" : "a member";
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -111,6 +115,32 @@ export function renderTemplate<T extends EmailTemplate>(
         subject: `Document added · ${row.route}`,
         text: textOf(paragraphs),
         html: layout(paragraphs),
+      };
+    }
+    case "operator_invite": {
+      const row = data as EmailTemplateData["operator_invite"];
+      const paragraphs = [
+        `You were added as ${roleLabel(row.role)} of ${row.operatorName} on KORIA.`,
+        "This link signs you into the operator portal. It works once.",
+      ];
+      const link = { href: row.magicLink, label: "Sign in" };
+      return {
+        subject: `Sign in to ${row.operatorName}`,
+        text: textOf(paragraphs, link),
+        html: layout(paragraphs, link),
+      };
+    }
+    case "operator_added": {
+      const row = data as EmailTemplateData["operator_added"];
+      const paragraphs = [
+        `You were added as ${roleLabel(row.role)} of ${row.operatorName} on KORIA.`,
+        "Sign in to the operator portal with this email.",
+      ];
+      const link = { href: row.portalUrl, label: "Open the portal" };
+      return {
+        subject: `Added to ${row.operatorName}`,
+        text: textOf(paragraphs, link),
+        html: layout(paragraphs, link),
       };
     }
     default: {

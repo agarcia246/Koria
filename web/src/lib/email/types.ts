@@ -1,6 +1,7 @@
 /**
- * Transactional templates. Call sites land in later issues; this module only renders and sends.
+ * Transactional templates.
  * `booking_confirmed` is one template. `audience` picks the customer or operator copy.
+ * `operator_invite` carries a one-time magic link. Callers must not log that value.
  */
 export const EMAIL_TEMPLATES = [
   "request_received",
@@ -9,6 +10,8 @@ export const EMAIL_TEMPLATES = [
   "booking_confirmed",
   "trip_cancelled",
   "documents_uploaded",
+  "operator_invite",
+  "operator_added",
 ] as const;
 
 export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number];
@@ -50,6 +53,16 @@ export type EmailTemplateData = {
   documents_uploaded: {
     route: string;
     documentTitle: string;
+  };
+  operator_invite: {
+    operatorName: string;
+    role: "admin" | "member";
+    magicLink: string;
+  };
+  operator_added: {
+    operatorName: string;
+    role: "admin" | "member";
+    portalUrl: string;
   };
 };
 
