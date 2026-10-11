@@ -37,6 +37,15 @@ struct TripsInboxView: View {
                     .frame(width: 22, height: 22)
                     .foregroundStyle(koria.foreground)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    NotificationsInboxView()
+                } label: {
+                    Image(systemName: "bell")
+                        .foregroundStyle(koria.foreground)
+                }
+                .accessibilityLabel("Notifications")
+            }
         }
         .navigationDestination(for: String.self) { id in
             TripDetailView(tripID: id)

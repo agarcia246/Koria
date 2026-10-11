@@ -73,6 +73,17 @@ final class LiveKoriaClient: KoriaClient {
         try await get(path: "/api/v1/me")
     }
 
+    func notifications(limit: Int, offset: Int) async throws -> NotificationPage {
+        try await get(
+            path: "/api/v1/me/notifications",
+            query: ["limit": String(limit), "offset": String(offset)]
+        )
+    }
+
+    func markNotificationRead(id: String) async throws -> InboxNotification {
+        try await post(path: "/api/v1/me/notifications/\(id)/read", body: EmptyJSON())
+    }
+
     private func get<T: Decodable>(path: String, query: [String: String] = [:]) async throws -> T {
         var components = URLComponents(url: baseURL.appending(path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))), resolvingAgainstBaseURL: false)
         if !query.isEmpty {
@@ -152,6 +163,8 @@ final class LiveKoriaClient: KoriaClient {
 private struct EmptyResponse: Decodable {
     init() {}
 }
+
+private struct EmptyJSON: Encodable {}
 
 /// Live empty legs can omit price, seats, or notes. The app model keeps those fields required.
 private struct EmptyLegDTO: Decodable {
