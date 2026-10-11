@@ -84,9 +84,16 @@ export async function updateSession(request: NextRequest) {
       url.search = "";
       if (role === "admin") url.pathname = "/admin";
       else if (role === "operator") url.pathname = "/operator";
-      else url.pathname = "/login";
-      if (role === "customer") {
+      else {
+        url.pathname = "/login";
         url.searchParams.set("error", "customer_no_portal");
+      }
+      // A customer is already on this exact login URL. Redirecting again loops.
+      if (url.pathname === path && url.search === request.nextUrl.search) {
+        pendingCookies.forEach(({ name, value, options }) => {
+          supabaseResponse.cookies.set(name, value, options);
+        });
+        return supabaseResponse;
       }
       return redirectWithSession(url);
     }
