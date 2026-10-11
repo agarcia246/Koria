@@ -560,28 +560,34 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string
+          event: string | null
           id: string
           profile_id: string | null
           read_at: string | null
           title: string | null
+          trip_request_id: string | null
           updated_at: string
         }
         Insert: {
           body?: string | null
           created_at?: string
+          event?: string | null
           id?: string
           profile_id?: string | null
           read_at?: string | null
           title?: string | null
+          trip_request_id?: string | null
           updated_at?: string
         }
         Update: {
           body?: string | null
           created_at?: string
+          event?: string | null
           id?: string
           profile_id?: string | null
           read_at?: string | null
           title?: string | null
+          trip_request_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -590,6 +596,13 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_trip_request_id_fkey"
+            columns: ["trip_request_id"]
+            isOneToOne: false
+            referencedRelation: "trip_requests"
             referencedColumns: ["id"]
           },
         ]

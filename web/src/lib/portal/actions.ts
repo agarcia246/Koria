@@ -9,8 +9,10 @@ import { resolvePlatformFee } from "@/lib/fees";
 import { computeOperatorAmount } from "@/lib/pricing";
 import { haversineNm } from "@/lib/geo";
 import { BROKER_DISCLOSURE } from "@/lib/disclosures";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
-import { nextStatusOnMarkPaid, nextStatusOnQuoteSent } from "@/lib/trips/state";
+import { confirmTripAfterPayment } from "@/lib/trips/confirm";
+import { nextStatusOnQuoteSent } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
 import { assertWrite } from "@/lib/portal/write";
 
@@ -266,7 +268,7 @@ export async function acceptPrice(tripId: string) {
   const customerTotal = priced.amount + fee.platformFeeAmount + taxes;
   const snapshot = await carrierSnapshot(ctx.supabase, ctx.operatorId);
 
-  const { error: quoteError } = await ctx.supabase.from("quotes").insert({
+  const { data: quote, error: quoteError } = await ctx.supabase.from("quotes").insert({
     trip_request_id: tripId,
     operator_id: ctx.operatorId,
     aircraft_id: aircraft.id,
@@ -280,7 +282,9 @@ export async function acceptPrice(tripId: string) {
     status: "pending",
     pricing_mode: priced.mode,
     carrier_disclosure_snapshot: snapshot,
-  });
+  })
+    .select("id")
+    .single();
   await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
 
   const { error: fanoutError } = await markFanoutQuoted(ctx.supabase, tripId, ctx.operatorId);
@@ -295,6 +299,9 @@ export async function acceptPrice(tripId: string) {
     await assertWrite("trip_requests", statusError, `/operator/requests/${tripId}`);
   }
 
+  if (quote?.id) {
+    enqueueNotification("quote_sent", { tripId, quoteId: quote.id });
+  }
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/requests");
 }
@@ -325,7 +332,7 @@ export async function sendQuote(tripId: string, formData: FormData) {
   const customerTotal = operatorAmount + fee.platformFeeAmount + taxes;
   const snapshot = await carrierSnapshot(ctx.supabase, ctx.operatorId);
 
-  const { error: quoteError } = await ctx.supabase.from("quotes").insert({
+  const { data: quote, error: quoteError } = await ctx.supabase.from("quotes").insert({
     trip_request_id: tripId,
     operator_id: ctx.operatorId,
     aircraft_id: aircraftId,
@@ -340,7 +347,9 @@ export async function sendQuote(tripId: string, formData: FormData) {
     parent_quote_id: parentQuoteId,
     pricing_mode: "quote_required",
     carrier_disclosure_snapshot: snapshot,
-  });
+  })
+    .select("id")
+    .single();
   await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
 
   const { error: fanoutError } = await markFanoutQuoted(ctx.supabase, tripId, ctx.operatorId);
@@ -363,6 +372,9 @@ export async function sendQuote(tripId: string, formData: FormData) {
     await assertWrite("trip_requests", statusError, `/operator/requests/${tripId}`);
   }
 
+  if (quote?.id) {
+    enqueueNotification("quote_sent", { tripId, quoteId: quote.id });
+  }
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/requests");
 }
@@ -372,8 +384,16 @@ export async function declineRequest(tripId: string) {
   if (!ctx.operatorId) throw new Error("No operator");
 
   const service = createServiceClient();
-  const { error } = await declineOperatorFanout(service, tripId, ctx.operatorId);
+  const { error, becameDeclined } = await declineOperatorFanout(service, tripId, ctx.operatorId);
   await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
+  if (becameDeclined) {
+    enqueueNotification("trip_cancelled", {
+      tripId,
+      reason: null,
+      outcome: "declined",
+      notify: "customer",
+    });
+  }
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/requests");
 }
@@ -399,8 +419,22 @@ export async function cancelOperatorTrip(tripId: string, formData: FormData) {
   if (!open && !booked) throw new Error("This trip cannot be cancelled");
 
   if (open) {
-    const { error } = await declineOperatorFanout(service, tripId, ctx.operatorId, reason, ctx.userId);
+    const { error, becameDeclined } = await declineOperatorFanout(
+      service,
+      tripId,
+      ctx.operatorId,
+      reason,
+      ctx.userId,
+    );
     await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
+    if (becameDeclined) {
+      enqueueNotification("trip_cancelled", {
+        tripId,
+        reason,
+        outcome: "declined",
+        notify: "customer",
+      });
+    }
     revalidatePath(`/operator/requests/${tripId}`);
     revalidatePath("/operator/requests");
     return;
@@ -435,6 +469,12 @@ export async function cancelOperatorTrip(tripId: string, formData: FormData) {
     .neq("status", "cancelled");
   await assertWrite("bookings", bookingError, `/operator/requests/${tripId}`);
 
+  enqueueNotification("trip_cancelled", {
+    tripId,
+    reason,
+    outcome: "cancelled",
+    notify: "customer",
+  });
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/requests");
   revalidatePath("/operator/bookings");
@@ -478,6 +518,7 @@ export async function uploadTripDocument(tripId: string, formData: FormData) {
   });
   await assertWrite("trip_documents", insertError, returnPath);
 
+  enqueueNotification("documents_uploaded", { tripId, documentTitle: title });
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/bookings");
 }
@@ -662,31 +703,10 @@ export async function adminMarkPaid(bookingId: string) {
     .single();
   if (profile?.role !== "admin") throw new Error("Admin only");
 
-  const { data: booking } = await service
-    .from("bookings")
-    .select("*")
-    .eq("id", bookingId)
-    .single();
-  if (!booking) throw new Error("Booking not found");
-
-  const { data: trip } = await service
-    .from("trip_requests")
-    .select("*")
-    .eq("id", booking.trip_request_id)
-    .single();
-  if (!trip) throw new Error("Trip not found");
-
-  const next = nextStatusOnMarkPaid(trip.status);
-  const { error: bookingError } = await service
-    .from("bookings")
-    .update({ status: "confirmed" })
-    .eq("id", bookingId);
-  await assertWrite("bookings", bookingError, `/admin/bookings/${bookingId}`);
-  const { error: tripError } = await service
-    .from("trip_requests")
-    .update({ status: next })
-    .eq("id", trip.id);
-  await assertWrite("trip_requests", tripError, `/admin/bookings/${bookingId}`);
+  const confirmed = await confirmTripAfterPayment(service, bookingId);
+  if (!confirmed.ok) {
+    await assertWrite(confirmed.table, confirmed.error, `/admin/bookings/${bookingId}`);
+  }
 
   revalidatePath("/admin/bookings");
   revalidatePath(`/admin/bookings/${bookingId}`);

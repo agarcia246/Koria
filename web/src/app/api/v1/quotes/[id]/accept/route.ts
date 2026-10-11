@@ -1,6 +1,8 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import { BROKER_DISCLOSURE } from "@/lib/disclosures";
 import { haversineNm } from "@/lib/geo";
+import { logError } from "@/lib/log";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { estimateBlockMinutes } from "@/lib/pricing";
 import { loadTripPayload } from "@/lib/trips/load";
 import { nextStatusOnCustomerAccept } from "@/lib/trips/state";
@@ -82,7 +84,7 @@ export async function POST(
     }
   }
 
-  await auth.supabase.from("bookings").insert({
+  const { error: bookingError } = await auth.supabase.from("bookings").insert({
     trip_request_id: trip.id,
     quote_id: quote.id,
     status: "pending",
@@ -101,10 +103,22 @@ export async function POST(
     estimated_block_minutes: estimatedBlockMinutes,
   });
 
-  await auth.supabase
+  const { error: tripError } = await auth.supabase
     .from("trip_requests")
     .update({ status: "awaiting_payment" })
     .eq("id", trip.id);
+
+  if (bookingError) {
+    logError("supabase_write_failed", { table: "bookings", message: bookingError.message });
+  } else if (tripError) {
+    logError("supabase_write_failed", { table: "trip_requests", message: tripError.message });
+  } else {
+    enqueueNotification("quote_accepted", {
+      tripId: trip.id,
+      quoteId: quote.id,
+      operatorId: quote.operator_id,
+    });
+  }
 
   const serialized = await loadTripPayload(auth.supabase, trip.id);
   return json(serialized);
