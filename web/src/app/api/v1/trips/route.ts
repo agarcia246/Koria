@@ -1,5 +1,7 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import type { Json } from "@/lib/database.types";
+import { logError } from "@/lib/log";
+import { eligibleOperatorIds } from "@/lib/trips/fanout";
 import { loadTripPayload } from "@/lib/trips/load";
 
 function resolveAirportId(value: unknown): string | null {
@@ -55,27 +57,40 @@ export async function POST(request: Request) {
     golf: Boolean(body.golf),
     skis: Boolean(body.skis),
     baggage: Boolean(body.baggage),
-  } as Json;
+  };
 
-  const { data: trip, error: insertError } = await auth.supabase
-    .from("trip_requests")
-    .insert({
-      customer_id: auth.userId,
-      origin_id: originId,
-      destination_id: destinationId,
-      depart_at: String(body.departure_date),
-      return_at: body.return_date ? String(body.return_date) : null,
-      passengers: Number(body.passengers),
-      prefs,
-      aircraft_id: body.aircraft_id ? String(body.aircraft_id) : null,
-      empty_leg_id: body.empty_leg_id ? String(body.empty_leg_id) : null,
-      notes: body.notes ? String(body.notes) : null,
-      status: "requested",
-    })
-    .select("*")
-    .single();
+  const aircraftId = body.aircraft_id ? String(body.aircraft_id) : null;
+  const eligible = await eligibleOperatorIds(auth.supabase, {
+    originId,
+    destinationId,
+    departAt: String(body.departure_date),
+    passengers: Number(body.passengers),
+    prefs,
+    aircraftId,
+  });
+  if ("error" in eligible) return error(eligible.error);
 
-  if (insertError || !trip) return error(insertError?.message ?? "Failed to create trip", 500);
+  const { data: trip, error: insertError } = await auth.supabase.rpc("create_trip_with_fanout", {
+    p_customer_id: auth.userId,
+    p_origin_id: originId,
+    p_destination_id: destinationId,
+    p_depart_at: String(body.departure_date),
+    p_return_at: body.return_date ? String(body.return_date) : null,
+    p_passengers: Number(body.passengers),
+    p_prefs: prefs as Json,
+    p_aircraft_id: aircraftId,
+    p_empty_leg_id: body.empty_leg_id ? String(body.empty_leg_id) : null,
+    p_notes: body.notes ? String(body.notes) : null,
+    p_operator_ids: eligible.operatorIds,
+  });
+
+  if (insertError || !trip) {
+    logError("supabase_write_failed", {
+      table: "trip_requests",
+      message: insertError?.message ?? "Failed to create trip",
+    });
+    return error(insertError?.message ?? "Failed to create trip", 500);
+  }
 
   const serialized = await loadTripPayload(auth.supabase, trip.id);
   return json(serialized, 201);
