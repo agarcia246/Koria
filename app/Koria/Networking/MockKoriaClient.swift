@@ -208,6 +208,45 @@ final class MockKoriaClient: KoriaClient {
         return catalog.demoUser
     }
 
+    func notifications(limit: Int, offset: Int) async throws -> NotificationPage {
+        try await pause(160)
+        let page = Array(inbox.dropFirst(offset).prefix(limit))
+        return NotificationPage(
+            notifications: page,
+            limit: limit,
+            offset: offset,
+            hasMore: offset + page.count < inbox.count
+        )
+    }
+
+    func markNotificationRead(id: String) async throws -> InboxNotification {
+        try await pause(120)
+        guard let index = inbox.firstIndex(where: { $0.id == id }) else { throw KoriaError.notFound }
+        inbox[index].readAt = inbox[index].readAt ?? Date()
+        return inbox[index]
+    }
+
+    private var inbox: [InboxNotification] = [
+        InboxNotification(
+            id: "mock-quote",
+            title: "Quote for Austin (AUS) to Cabo (SJD)",
+            body: "Atelier Jet sent a quote. Open the KORIA app to review it.",
+            event: "quote_sent",
+            tripRequestId: nil,
+            readAt: nil,
+            createdAt: Date().addingTimeInterval(-3600)
+        ),
+        InboxNotification(
+            id: "mock-confirmed",
+            title: "Trip confirmed · Miami (MIA) to Nassau (NAS)",
+            body: "Your trip is confirmed.",
+            event: "booking_confirmed",
+            tripRequestId: nil,
+            readAt: Date().addingTimeInterval(-86400),
+            createdAt: Date().addingTimeInterval(-86400)
+        ),
+    ]
+
     private func scheduleQuote(for trip: Trip) {
         let aircraftID = trip.aircraftID ?? catalog.aircraft.first?.id
         guard let aircraftID, let listing = catalog.listing(id: aircraftID) else { return }

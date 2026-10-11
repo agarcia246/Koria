@@ -421,6 +421,23 @@ enum Geo {
     }
 }
 
+struct NotificationPage: Decodable, Hashable, Sendable {
+    var notifications: [InboxNotification]
+    var limit: Int
+    var offset: Int
+    var hasMore: Bool
+}
+
+struct InboxNotification: Identifiable, Decodable, Hashable, Sendable {
+    var id: String
+    var title: String?
+    var body: String?
+    var event: String?
+    var tripRequestId: String?
+    var readAt: Date?
+    var createdAt: Date
+}
+
 enum BrokerDisclosure {
     /// TODO: aviation counsel — placeholder Part 295 broker disclosure.
     static let fallback = "KORIA acts as an air charter broker, not the operator of the aircraft. The direct air carrier named on this trip has operational control."

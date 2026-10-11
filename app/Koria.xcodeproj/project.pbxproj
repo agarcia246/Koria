@@ -27,6 +27,7 @@
 		9FBCBFBDAE0AED1288C9908C /* MockKoriaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5294018DD044E6FC84A4D6 /* MockKoriaClient.swift */; };
 		A645454CFD5EF88D35876D1A /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CE4E03C01662C77705C77A /* Models.swift */; };
 		B7520982606EA330AF14F3EB /* TripsInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F750F3602DC54A30AE3100D /* TripsInboxView.swift */; };
+		C8A41E07D93B52F6104E8A77 /* NotificationsInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0E7B19A6C3582F91E04B60 /* NotificationsInboxView.swift */; };
 		BAE30CD1BF51304E01573A9C /* SearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B99C6095273A82023B268BF /* SearchViewModel.swift */; };
 		BE4E4DEBEAFC66F670E50801 /* AirportPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE00EEA90D4FDE4AD715015C /* AirportPickerView.swift */; };
 		C0BC3AB321E15CCF9B5859A1 /* TripRequestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ED79D0A9824546ACCAF5DAF /* TripRequestView.swift */; };
@@ -58,6 +59,7 @@
 		550E8351004F64D0E681CDF2 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		663D151EBD625D1853C439C9 /* KoriaClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaClient.swift; sourceTree = "<group>"; };
 		6F750F3602DC54A30AE3100D /* TripsInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripsInboxView.swift; sourceTree = "<group>"; };
+		4D0E7B19A6C3582F91E04B60 /* NotificationsInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsInboxView.swift; sourceTree = "<group>"; };
 		775B0D557B478987392A816F /* KoriaComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaComponents.swift; sourceTree = "<group>"; };
 		82FF447A17E09B684D531132 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
 		B76067BB263B7DB5D2970F10 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
@@ -129,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				6F750F3602DC54A30AE3100D /* TripsInboxView.swift */,
+				4D0E7B19A6C3582F91E04B60 /* NotificationsInboxView.swift */,
 			);
 			path = Trips;
 			sourceTree = "<group>";
@@ -377,6 +380,7 @@
 				BAE30CD1BF51304E01573A9C /* SearchViewModel.swift in Sources */,
 				C0BC3AB321E15CCF9B5859A1 /* TripRequestView.swift in Sources */,
 				B7520982606EA330AF14F3EB /* TripsInboxView.swift in Sources */,
+				C8A41E07D93B52F6104E8A77 /* NotificationsInboxView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
