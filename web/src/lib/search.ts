@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
+import { isAircraftEligible } from "@/lib/eligibility";
 import { haversineNm } from "@/lib/geo";
 import { computeOperatorAmount } from "@/lib/pricing";
 import { serializeAirport, serializeListing } from "@/lib/api/serialize";
@@ -156,21 +157,25 @@ export async function runSearch(
     const operator = operatorMap.get(ac.operator_id);
     if (!model || !operator) continue;
 
-    if (ac.seating < body.passengers) continue;
-    if (distanceNm * 1.15 > model.range_nm) continue;
-    if (body.pets && !ac.pets) continue;
-    if (body.wifi_preferred && !ac.wifi) continue;
-    if (body.golf && !ac.golf) continue;
-    if (body.skis && !ac.skis) continue;
-    if (body.baggage && !(Number(ac.baggage_cu_ft ?? 0) > 0)) continue;
-
-    const blocked = (blocks ?? []).some((b) => {
-      if (b.aircraft_id !== ac.id) return false;
-      const start = new Date(b.starts_at);
-      const end = new Date(b.ends_at);
-      return depart >= start && depart <= end;
-    });
-    if (blocked) continue;
+    if (
+      !isAircraftEligible({
+        aircraft: ac,
+        rangeNm: model.range_nm,
+        blocks: blocks ?? [],
+        request: {
+          passengers: body.passengers,
+          pets: body.pets,
+          wifi_preferred: body.wifi_preferred,
+          golf: body.golf,
+          skis: body.skis,
+          baggage: body.baggage,
+          departAt: depart,
+          distanceNm,
+        },
+      })
+    ) {
+      continue;
+    }
 
     const matchingEmpty = (emptyLegs ?? []).find((el) => {
       if (el.aircraft_id !== ac.id) return false;

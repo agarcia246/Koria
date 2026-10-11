@@ -18,7 +18,8 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | aircraft_availability | read | read/write own fleet | via member policies | |
 | searches | own | none | own policy includes admin | Search text stays private to the customer. |
 | empty_legs | read published | write own | via member policies | |
-| trip_requests | own | read/update when the aircraft or a quote is theirs | included in customer policy | |
+| trip_requests | own | read/update when the aircraft, a quote, or a fan-out row is theirs | included in customer policy | `operator_can_access_trip` includes `trip_request_operators`. |
+| trip_request_operators | none | read and update own rows | all | Customers have no policy. Inserts are service-role only via `create_trip_with_fanout`. |
 | quotes | own trip | own operator | included | |
 | bookings | own trip | own quote | update | |
 | passenger_profiles | own | none | all | Passenger identity is not shared with the carrier through this table. |

@@ -1254,6 +1254,45 @@ export type Database = {
           },
         ]
       }
+      trip_request_operators: {
+        Row: {
+          created_at: string
+          operator_id: string
+          status: Database["public"]["Enums"]["trip_request_operator_status"]
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          operator_id: string
+          status?: Database["public"]["Enums"]["trip_request_operator_status"]
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          operator_id?: string
+          status?: Database["public"]["Enums"]["trip_request_operator_status"]
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_request_operators_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_request_operators_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_requests: {
         Row: {
           aircraft_id: string | null
@@ -1355,7 +1394,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_trip_with_fanout: {
+        Args: {
+          p_aircraft_id: string | null
+          p_customer_id: string
+          p_depart_at: string
+          p_destination_id: string
+          p_empty_leg_id: string | null
+          p_notes: string | null
+          p_operator_ids: string[]
+          p_origin_id: string
+          p_passengers: number
+          p_prefs: Json
+          p_return_at: string | null
+        }
+        Returns: Database["public"]["Tables"]["trip_requests"]["Row"]
+      }
       is_admin: { Args: never; Returns: boolean }
+      operator_can_access_trip: { Args: { trip_id: string }; Returns: boolean }
       operator_ids: { Args: never; Returns: string[] }
     }
     Enums: {
@@ -1377,6 +1433,7 @@ export type Database = {
         | "declined"
         | "expired"
         | "countered"
+      trip_request_operator_status: "pending" | "quoted" | "declined"
       trip_status:
         | "requested"
         | "quote_received"
@@ -1531,6 +1588,7 @@ export const Constants = {
       empty_leg_status: ["published", "withdrawn", "booked"],
       pricing_mode: ["live", "estimated", "quote_required"],
       quote_status: ["pending", "accepted", "declined", "expired", "countered"],
+      trip_request_operator_status: ["pending", "quoted", "declined"],
       trip_status: [
         "requested",
         "quote_received",
