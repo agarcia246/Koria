@@ -18,7 +18,11 @@ export function json(data: unknown, status = 200) {
 }
 
 export function error(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
+  const requestId = crypto.randomUUID();
+  return NextResponse.json(
+    { error: message, request_id: requestId },
+    { status, headers: { "x-request-id": requestId } },
+  );
 }
 
 export async function requireBearerAuth(
