@@ -58,6 +58,17 @@ export default function LoginPage({ errorParam }: { errorParam: string | null })
         {errorParam === "customer_no_portal" && (
           <p className="mt-4 text-sm text-warm border border-silver/50 p-3">
             Customer accounts use the iOS app. Sign in with an operator or admin account.
+            <button
+              type="button"
+              className="mt-3 block text-ink underline"
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+            >
+              Sign out and use a different email
+            </button>
           </p>
         )}
 
