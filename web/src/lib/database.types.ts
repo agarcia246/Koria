@@ -1260,6 +1260,7 @@ export type Database = {
       trip_request_operators: {
         Row: {
           created_at: string
+          decline_reason: string | null
           operator_id: string
           status: Database["public"]["Enums"]["trip_request_operator_status"]
           trip_id: string
@@ -1267,6 +1268,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          decline_reason?: string | null
           operator_id: string
           status?: Database["public"]["Enums"]["trip_request_operator_status"]
           trip_id: string
@@ -1274,6 +1276,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          decline_reason?: string | null
           operator_id?: string
           status?: Database["public"]["Enums"]["trip_request_operator_status"]
           trip_id?: string
@@ -1299,6 +1302,9 @@ export type Database = {
       trip_requests: {
         Row: {
           aircraft_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           customer_id: string
           depart_at: string
@@ -1318,6 +1324,9 @@ export type Database = {
         }
         Insert: {
           aircraft_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           customer_id: string
           depart_at: string
@@ -1337,6 +1346,9 @@ export type Database = {
         }
         Update: {
           aircraft_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           customer_id?: string
           depart_at?: string

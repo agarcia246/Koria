@@ -117,10 +117,15 @@ export async function declineOperatorFanout(
   client: Client,
   tripId: string,
   operatorId: string,
+  reason?: string | null,
+  actorId?: string | null,
 ): Promise<{ error: { message: string } | null; tripStatus: TripStatus | null }> {
   const { data: updated, error: updateError } = await client
     .from("trip_request_operators")
-    .update({ status: "declined" })
+    .update({
+      status: "declined",
+      ...(reason ? { decline_reason: reason } : {}),
+    })
     .eq("trip_id", tripId)
     .eq("operator_id", operatorId)
     .select("trip_id");
@@ -147,7 +152,19 @@ export async function declineOperatorFanout(
   }
 
   const next = nextStatusOnOperatorDecline(trip.status);
-  const { error: statusError } = await client.from("trip_requests").update({ status: next }).eq("id", tripId);
+  const { error: statusError } = await client
+    .from("trip_requests")
+    .update({
+      status: next,
+      ...(reason
+        ? {
+            cancellation_reason: reason,
+            cancelled_by: actorId ?? null,
+            cancelled_at: new Date().toISOString(),
+          }
+        : {}),
+    })
+    .eq("id", tripId);
   if (statusError) return { error: statusError, tripStatus: trip.status };
   return { error: null, tripStatus: next };
 }

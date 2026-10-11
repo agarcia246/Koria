@@ -378,6 +378,68 @@ export async function declineRequest(tripId: string) {
   revalidatePath("/operator/requests");
 }
 
+export async function cancelOperatorTrip(tripId: string, formData: FormData) {
+  const ctx = await requireOperatorContext();
+  if (!ctx.operatorId) throw new Error("No operator");
+  const reason = String(formData.get("reason") || "").trim();
+  if (!reason) throw new Error("A reason is required");
+
+  const service = createServiceClient();
+  const { data: trip, error: tripError } = await service
+    .from("trip_requests")
+    .select("status")
+    .eq("id", tripId)
+    .maybeSingle();
+  await assertWrite("trip_requests", tripError, `/operator/requests/${tripId}`);
+  if (!trip) throw new Error("Trip not found");
+
+  const open = trip.status === "requested" || trip.status === "quote_received";
+  const booked =
+    trip.status === "awaiting_payment" || trip.status === "confirmed" || trip.status === "upcoming";
+  if (!open && !booked) throw new Error("This trip cannot be cancelled");
+
+  if (open) {
+    const { error } = await declineOperatorFanout(service, tripId, ctx.operatorId, reason, ctx.userId);
+    await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
+    revalidatePath(`/operator/requests/${tripId}`);
+    revalidatePath("/operator/requests");
+    return;
+  }
+
+  const { data: accepted, error: quoteError } = await service
+    .from("quotes")
+    .select("operator_id")
+    .eq("trip_request_id", tripId)
+    .eq("status", "accepted")
+    .maybeSingle();
+  await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
+  if (accepted?.operator_id !== ctx.operatorId) {
+    throw new Error("Only the operating carrier can cancel this trip");
+  }
+
+  const { error: cancelError } = await service
+    .from("trip_requests")
+    .update({
+      status: "cancelled",
+      cancellation_reason: reason,
+      cancelled_by: ctx.userId,
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq("id", tripId);
+  await assertWrite("trip_requests", cancelError, `/operator/requests/${tripId}`);
+
+  const { error: bookingError } = await service
+    .from("bookings")
+    .update({ status: "cancelled" })
+    .eq("trip_request_id", tripId)
+    .neq("status", "cancelled");
+  await assertWrite("bookings", bookingError, `/operator/requests/${tripId}`);
+
+  revalidatePath(`/operator/requests/${tripId}`);
+  revalidatePath("/operator/requests");
+  revalidatePath("/operator/bookings");
+}
+
 export async function adminReviewAccess(
   requestId: string,
   decision: "approved" | "declined",

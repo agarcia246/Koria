@@ -11,6 +11,7 @@ protocol KoriaClient: AnyObject {
     func submitTrip(_ draft: TripDraft) async throws -> Trip
     func acceptQuote(id: String) async throws -> Trip
     func declineQuote(id: String) async throws -> Quote
+    func cancelTrip(id: String, reason: String) async throws -> Trip
     func passport() async throws -> PassportProfile
     func updatePassport(_ profile: PassportProfile) async throws -> PassportProfile
     func requestAccess(email: String, name: String) async throws
@@ -66,6 +67,10 @@ struct SearchRequestDTO: Codable, Sendable {
 struct QuoteDecisionDTO: Codable, Sendable {
     var quoteID: String
     var accept: Bool
+}
+
+struct CancelTripDTO: Codable, Sendable {
+    var reason: String
 }
 
 struct AccessRequestDTO: Codable, Sendable {

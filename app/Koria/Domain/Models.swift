@@ -288,6 +288,8 @@ struct Trip: Identifiable, Hashable, Codable, Sendable {
     var baggage: Bool
     var status: TripStatus
     var booking: Booking?
+    var cancellationReason: String? = nil
+    var cancelledBy: String? = nil
 }
 
 struct CarrierDisclosure: Hashable, Codable, Sendable {

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { acceptPrice, declineRequest, sendQuote } from "@/lib/portal/actions";
+import { acceptPrice, cancelOperatorTrip, declineRequest, sendQuote } from "@/lib/portal/actions";
 import { requireOperatorContext } from "@/lib/portal/operator";
 import { resolvePlatformFee } from "@/lib/fees";
 
@@ -45,6 +45,13 @@ export default async function RequestDetailPage({
   const doAccept = acceptPrice.bind(null, id);
   const doDecline = declineRequest.bind(null, id);
   const doSend = sendQuote.bind(null, id);
+  const doCancel = cancelOperatorTrip.bind(null, id);
+  const canCancel =
+    trip.status === "requested" ||
+    trip.status === "quote_received" ||
+    trip.status === "awaiting_payment" ||
+    trip.status === "confirmed" ||
+    trip.status === "upcoming";
 
   return (
     <div className="max-w-2xl">
@@ -69,6 +76,29 @@ export default async function RequestDetailPage({
           </button>
         </form>
       </div>
+
+      {canCancel ? (
+        <form action={doCancel} className="mt-6 space-y-3 border border-silver/40 p-4">
+          <h2 className="text-xs uppercase tracking-wide text-warm">Cancel</h2>
+          <p className="text-xs text-warm">
+            While the trip is still open this withdraws only your response. Once your quote is
+            accepted it cancels the trip. Cancelling does not move money.
+          </p>
+          <label className="block text-xs uppercase tracking-wide text-warm">
+            Reason
+            <input
+              name="reason"
+              required
+              className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
+            />
+          </label>
+          <button type="submit" className="border border-ink px-4 py-2 text-sm">
+            {trip.status === "requested" || trip.status === "quote_received"
+              ? "Withdraw our response"
+              : "Cancel trip"}
+          </button>
+        </form>
+      ) : null}
 
       <section className="mt-10 border border-silver/40 bg-ivory p-5">
         <h2 className="text-xs uppercase tracking-wide text-warm">Send quote / counter</h2>

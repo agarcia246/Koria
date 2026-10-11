@@ -170,6 +170,23 @@ final class MockKoriaClient: KoriaClient {
         return quote
     }
 
+    func cancelTrip(id: String, reason: String) async throws -> Trip {
+        try await pause(280)
+        let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw KoriaError.invalidQuery("A reason is required.") }
+        guard var trip = store.trips.first(where: { $0.id == id }) else { throw KoriaError.notFound }
+        let allowed: Set<TripStatus> = [.requested, .quoteReceived, .awaitingPayment, .confirmed, .upcoming]
+        guard allowed.contains(trip.status) else { throw KoriaError.invalidQuery("This trip cannot be cancelled.") }
+        trip.status = .cancelled
+        trip.cancellationReason = trimmed
+        if var booking = trip.booking {
+            booking.status = .cancelled
+            trip.booking = booking
+        }
+        store.upsert(trip)
+        return trip
+    }
+
     func passport() async throws -> PassportProfile {
         try await pause(120)
         return store.passport
