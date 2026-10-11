@@ -3,7 +3,7 @@ import { BROKER_DISCLOSURE } from "@/lib/disclosures";
 import { haversineNm } from "@/lib/geo";
 import { logError } from "@/lib/log";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
-import { estimateBlockMinutes } from "@/lib/pricing";
+import { pricedBlockMinutes } from "@/lib/pricing";
 import { loadTripPayload } from "@/lib/trips/load";
 import { nextStatusOnCustomerAccept } from "@/lib/trips/state";
 
@@ -56,8 +56,12 @@ export async function POST(
   const snapshot = (quote.carrier_disclosure_snapshot ?? {}) as Record<string, unknown>;
 
   const [{ data: aircraft }, { data: origin }, { data: destination }] = await Promise.all([
-    auth.supabase.from("aircraft").select("model_id").eq("id", quote.aircraft_id).maybeSingle(),
-    auth.supabase.from("airports").select("latitude, longitude").eq("id", trip.origin_id).maybeSingle(),
+    auth.supabase
+      .from("aircraft")
+      .select("model_id, home_base_id")
+      .eq("id", quote.aircraft_id)
+      .maybeSingle(),
+    auth.supabase.from("airports").select("id, latitude, longitude").eq("id", trip.origin_id).maybeSingle(),
     auth.supabase
       .from("airports")
       .select("latitude, longitude")
@@ -72,15 +76,37 @@ export async function POST(
       .eq("id", aircraft.model_id)
       .maybeSingle();
     if (model) {
-      const distanceNm = haversineNm(
+      const liveNm = haversineNm(
         origin.latitude,
         origin.longitude,
         destination.latitude,
         destination.longitude,
       );
-      // Same airborne estimate pricing uses (distance / cruise speed). There is
-      // no filed block time on the aircraft.
-      estimatedBlockMinutes = estimateBlockMinutes(distanceNm, model.cruise_speed_ktas);
+      let repositionNm = 0;
+      if (aircraft.home_base_id && aircraft.home_base_id !== origin.id) {
+        const { data: homeBase } = await auth.supabase
+          .from("airports")
+          .select("latitude, longitude")
+          .eq("id", aircraft.home_base_id)
+          .maybeSingle();
+        if (homeBase) {
+          repositionNm = haversineNm(
+            homeBase.latitude,
+            homeBase.longitude,
+            origin.latitude,
+            origin.longitude,
+          );
+        }
+      }
+      // Same legs and the same legBlockMinutes clock as computeOperatorAmount.
+      estimatedBlockMinutes = pricedBlockMinutes(
+        {
+          repositionNm,
+          liveNm,
+          returnNm: trip.return_at ? liveNm : 0,
+        },
+        model.cruise_speed_ktas,
+      );
     }
   }
 
