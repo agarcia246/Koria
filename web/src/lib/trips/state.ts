@@ -2,7 +2,7 @@ import type { TripStatus } from "@/lib/database.types";
 
 const transitions: Record<TripStatus, TripStatus[]> = {
   requested: ["quote_received", "declined", "cancelled"],
-  quote_received: ["awaiting_payment", "declined", "cancelled"],
+  quote_received: ["requested", "awaiting_payment", "declined", "cancelled"],
   awaiting_payment: ["confirmed", "cancelled"],
   confirmed: ["upcoming", "cancelled"],
   upcoming: ["completed", "cancelled"],
@@ -34,6 +34,11 @@ export function nextStatusOnOperatorDecline(current: TripStatus): TripStatus {
 export function nextStatusOnCustomerAccept(current: TripStatus): TripStatus {
   assertTransition(current, "awaiting_payment");
   return "awaiting_payment";
+}
+
+export function nextStatusOnQuotesExpired(current: TripStatus): TripStatus {
+  if (current === "quote_received") return "requested";
+  return current;
 }
 
 export function nextStatusOnAllQuotesDeclined(current: TripStatus): TripStatus {
