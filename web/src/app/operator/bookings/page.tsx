@@ -1,4 +1,5 @@
 import { requireOperatorContext } from "@/lib/portal/operator";
+import { uploadTripDocument } from "@/lib/portal/actions";
 
 export default async function BookingsPage() {
   const ctx = await requireOperatorContext();
@@ -35,6 +36,7 @@ export default async function BookingsPage() {
             <th>Booking</th>
             <th>Total</th>
             <th>Carrier</th>
+            <th>Document</th>
           </tr>
         </thead>
         <tbody>
@@ -45,6 +47,16 @@ export default async function BookingsPage() {
               <td>{b.status}</td>
               <td className="tabular-nums">${Number(b.customer_total).toLocaleString()}</td>
               <td>{b.operating_carrier_dba ?? b.operating_carrier_legal_name}</td>
+              <td>
+                <form action={uploadTripDocument.bind(null, b.trip_request_id)} className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="return_path" value="/operator/bookings" />
+                  <input name="title" placeholder="Title" className="w-28 border border-silver/50 bg-paper px-2 py-1" />
+                  <input name="file" type="file" required className="max-w-40 text-xs" />
+                  <button type="submit" className="border border-ink px-2 py-1 text-xs">
+                    Upload
+                  </button>
+                </form>
+              </td>
             </tr>
           ))}
         </tbody>

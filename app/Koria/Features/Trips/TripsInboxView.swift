@@ -101,6 +101,10 @@ struct TripDetailView: View {
                     .koriaLabel()
             }
         }
+        .task(id: tripID) {
+            guard let fresh = try? await dependencies.client.trip(id: tripID) else { return }
+            store.upsert(fresh)
+        }
     }
 
     private func content(_ trip: Trip) -> some View {
@@ -123,6 +127,8 @@ struct TripDetailView: View {
                 if trip.status == .confirmed || trip.status == .upcoming || trip.status == .awaitingPayment,
                    let booking = trip.booking {
                     confirmedDetail(trip: trip, booking: booking, listing: listing)
+                } else if trip.status == .completed {
+                    documentsList(trip)
                 }
 
                 VStack(alignment: .leading, spacing: KoriaSpace.md) {
@@ -210,11 +216,38 @@ struct TripDetailView: View {
             if !prefs.isEmpty {
                 row("Preferences", prefs.joined(separator: " · "))
             }
-            row("Documents", "Trip documents will appear here.")
+            documentsList(trip)
             row("Support", "support@koria.travel")
             Text("Reference \(booking.id.uppercased())")
                 .font(KoriaFont.sans(13))
                 .foregroundStyle(koria.muted)
+        }
+    }
+
+    @ViewBuilder
+    private func documentsList(_ trip: Trip) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Documents").koriaLabel()
+            if trip.documents.isEmpty {
+                Text("No documents yet.")
+                    .font(KoriaFont.sans(16))
+                    .foregroundStyle(koria.muted)
+            } else {
+                ForEach(trip.documents) { document in
+                    if let raw = document.url, let link = URL(string: raw) {
+                        Link(destination: link) {
+                            Text(document.title)
+                                .font(KoriaFont.sans(16))
+                                .foregroundStyle(koria.foreground)
+                        }
+                    } else {
+                        Text(document.title)
+                            .font(KoriaFont.sans(16))
+                            .foregroundStyle(koria.muted)
+                    }
+                }
+            }
+            KoriaDivider()
         }
     }
 

@@ -40,4 +40,4 @@ No `public` table is service-role-only.
 
 `job_runs` is the closest case: authenticated users cannot insert, and only an admin can select. The cron job writes through a security-definer function, which is the same path the service role would use. That keeps the schedule's history out of customer and operator clients without hiding it from an admin.
 
-`auth` and `storage` objects are outside this list. `storage.objects` for `aircraft-photos` is public-read with operator or admin write, from `0001_init.sql`.
+`auth` and `storage` objects are outside this list. `storage.objects` for `aircraft-photos` is public-read with operator or admin write, from `0001_init.sql`. `storage.objects` for `trip-documents` is private. Operator members on the trip, the customer, and admins can read. Operator members and admins can write. Paths are `{trip_id}/{file}`.

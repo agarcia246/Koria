@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { acceptPrice, cancelOperatorTrip, declineRequest, sendQuote } from "@/lib/portal/actions";
+import { acceptPrice, cancelOperatorTrip, declineRequest, sendQuote, uploadTripDocument } from "@/lib/portal/actions";
 import { requireOperatorContext } from "@/lib/portal/operator";
 import { resolvePlatformFee } from "@/lib/fees";
 
@@ -46,6 +46,7 @@ export default async function RequestDetailPage({
   const doDecline = declineRequest.bind(null, id);
   const doSend = sendQuote.bind(null, id);
   const doCancel = cancelOperatorTrip.bind(null, id);
+  const doUpload = uploadTripDocument.bind(null, id);
   const canCancel =
     trip.status === "requested" ||
     trip.status === "quote_received" ||
@@ -180,6 +181,20 @@ export default async function RequestDetailPage({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mt-10 border border-silver/40 p-5">
+        <h2 className="text-xs uppercase tracking-wide text-warm">Trip documents</h2>
+        <form action={doUpload} className="mt-4 space-y-3">
+          <label className="block text-xs uppercase tracking-wide text-warm">
+            Title
+            <input name="title" className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2" />
+          </label>
+          <input name="file" type="file" required className="text-sm" />
+          <button type="submit" className="bg-ink text-paper px-4 py-2 text-sm">
+            Upload
+          </button>
+        </form>
       </section>
     </div>
   );
