@@ -1,0 +1,16 @@
+{
+  "name": "koria-airport-import",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import": "tsx import_airports.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "geo-tz": "^8.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.20.5"
+  }
+}

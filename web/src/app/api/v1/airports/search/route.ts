@@ -9,14 +9,12 @@ export async function GET(request: Request) {
   const q = (searchParams.get("q") ?? "").trim();
   if (!q) return json([]);
 
-  const pattern = `%${q}%`;
-  const { data, error: dbError } = await auth.supabase
-    .from("airports")
-    .select("*")
-    .or(
-      `icao.ilike.${pattern},iata.ilike.${pattern},name.ilike.${pattern},city.ilike.${pattern}`,
-    )
-    .limit(20);
+  // search_airports (0012) ranks code matches ahead of name/city and hard-caps at 20.
+  // Trigram indexes on icao, iata, name, and city back the contains match.
+  const { data, error: dbError } = await auth.supabase.rpc("search_airports", {
+    p_q: q,
+    p_limit: 20,
+  });
 
   if (dbError) return error(dbError.message, 500);
   return json((data ?? []).map(serializeAirport));

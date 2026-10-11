@@ -361,6 +361,7 @@ export type Database = {
           city: string
           country: string
           created_at: string
+          fbo_name: string | null
           iata: string | null
           icao: string
           id: string
@@ -368,6 +369,7 @@ export type Database = {
           longitude: number
           name: string
           region: string | null
+          runway_length_ft: number | null
           time_zone: string | null
           updated_at: string
         }
@@ -375,6 +377,7 @@ export type Database = {
           city: string
           country: string
           created_at?: string
+          fbo_name?: string | null
           iata?: string | null
           icao: string
           id?: string
@@ -382,6 +385,7 @@ export type Database = {
           longitude: number
           name: string
           region?: string | null
+          runway_length_ft?: number | null
           time_zone?: string | null
           updated_at?: string
         }
@@ -389,6 +393,7 @@ export type Database = {
           city?: string
           country?: string
           created_at?: string
+          fbo_name?: string | null
           iata?: string | null
           icao?: string
           id?: string
@@ -396,6 +401,7 @@ export type Database = {
           longitude?: number
           name?: string
           region?: string | null
+          runway_length_ft?: number | null
           time_zone?: string | null
           updated_at?: string
         }
@@ -1441,6 +1447,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       operator_can_access_trip: { Args: { trip_id: string }; Returns: boolean }
       operator_ids: { Args: never; Returns: string[] }
+      search_airports: {
+        Args: { p_limit?: number; p_q: string }
+        Returns: Database["public"]["Tables"]["airports"]["Row"][]
+      }
     }
     Enums: {
       access_status: "requested" | "approved" | "declined" | "invited"
