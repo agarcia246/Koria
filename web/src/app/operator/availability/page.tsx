@@ -1,4 +1,4 @@
-import { createAvailability } from "@/lib/portal/actions";
+import { createAvailability, importAvailability } from "@/lib/portal/actions";
 import { requireOperatorContext } from "@/lib/portal/operator";
 
 export default async function AvailabilityPage() {
@@ -26,6 +26,36 @@ export default async function AvailabilityPage() {
   return (
     <div>
       <h1 className="font-display text-3xl">Availability</h1>
+      <form action={importAvailability} className="mt-8 grid gap-4 max-w-2xl border border-silver/40 p-4">
+        <p className="text-sm text-warm">
+          Upload an iCal or CSV for one aircraft. iCal events are blocked windows: the aircraft is busy, not free.
+          A CSV may set kind to blocked or available (blocked if omitted). Columns: starts_at, ends_at, kind, notes.
+          Re-uploading replaces only this aircraft&apos;s imported rows. Manual rows stay.
+        </p>
+        <label className="block text-xs uppercase tracking-wide text-warm">
+          Aircraft
+          <select name="aircraft_id" required className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2">
+            {(fleet ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.tail_number}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block text-xs uppercase tracking-wide text-warm">
+          File
+          <input
+            type="file"
+            name="file"
+            accept=".ics,.csv,text/calendar,text/csv"
+            required
+            className="mt-1 block w-full text-sm"
+          />
+        </label>
+        <button type="submit" className="bg-ink text-paper px-4 py-2 text-sm w-fit">
+          Replace imported windows
+        </button>
+      </form>
       <form action={createAvailability} className="mt-8 grid grid-cols-2 gap-4 max-w-2xl">
         <label className="block text-xs uppercase tracking-wide text-warm col-span-2">
           Aircraft
@@ -83,6 +113,7 @@ export default async function AvailabilityPage() {
           <tr className="border-b border-silver/40 text-left text-xs uppercase text-warm">
             <th className="py-2">Aircraft</th>
             <th>Kind</th>
+            <th>Source</th>
             <th>Start</th>
             <th>End</th>
           </tr>
@@ -92,6 +123,7 @@ export default async function AvailabilityPage() {
             <tr key={b.id} className="border-b border-silver/30">
               <td className="py-2">{fleetMap.get(b.aircraft_id)}</td>
               <td>{b.kind}</td>
+              <td>{b.source}</td>
               <td>{new Date(b.starts_at).toISOString()}</td>
               <td>{new Date(b.ends_at).toISOString()}</td>
             </tr>
