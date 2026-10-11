@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/database.types";
+import type { Database, TripStatus } from "@/lib/database.types";
 import { isAircraftEligible, type EligibilityRequest } from "@/lib/eligibility";
 import { haversineNm } from "@/lib/geo";
+import { nextStatusOnOperatorDecline } from "@/lib/trips/state";
 
 type Client = SupabaseClient<Database>;
 
@@ -97,4 +98,56 @@ export async function eligibleOperatorIds(
   }
 
   return { operatorIds: Array.from(operatorIds) };
+}
+
+export async function markFanoutQuoted(client: Client, tripId: string, operatorId: string) {
+  return client
+    .from("trip_request_operators")
+    .update({ status: "quoted" })
+    .eq("trip_id", tripId)
+    .eq("operator_id", operatorId);
+}
+
+/**
+ * Marks this operator declined. The trip becomes declined only when every
+ * fan-out row is declined and no quote on the trip is still pending.
+ * Uses a service-role client so one operator cannot read the other rows.
+ */
+export async function declineOperatorFanout(
+  client: Client,
+  tripId: string,
+  operatorId: string,
+): Promise<{ error: { message: string } | null; tripStatus: TripStatus | null }> {
+  const { data: updated, error: updateError } = await client
+    .from("trip_request_operators")
+    .update({ status: "declined" })
+    .eq("trip_id", tripId)
+    .eq("operator_id", operatorId)
+    .select("trip_id");
+  if (updateError) return { error: updateError, tripStatus: null };
+  if (!updated?.length) {
+    return { error: { message: "This operator is not on the request" }, tripStatus: null };
+  }
+
+  const [{ data: rows, error: rowsError }, { data: pending, error: pendingError }, { data: trip, error: tripError }] =
+    await Promise.all([
+      client.from("trip_request_operators").select("status").eq("trip_id", tripId),
+      client.from("quotes").select("id").eq("trip_request_id", tripId).eq("status", "pending"),
+      client.from("trip_requests").select("status").eq("id", tripId).maybeSingle(),
+    ]);
+  const readError = rowsError ?? pendingError ?? tripError;
+  if (readError) return { error: readError, tripStatus: trip?.status ?? null };
+  if (!trip) return { error: { message: "Trip not found" }, tripStatus: null };
+
+  const allDeclined = (rows ?? []).length > 0 && (rows ?? []).every((row) => row.status === "declined");
+  const noPendingQuote = (pending ?? []).length === 0;
+  if (!allDeclined || !noPendingQuote) return { error: null, tripStatus: trip.status };
+  if (trip.status !== "requested" && trip.status !== "quote_received") {
+    return { error: null, tripStatus: trip.status };
+  }
+
+  const next = nextStatusOnOperatorDecline(trip.status);
+  const { error: statusError } = await client.from("trip_requests").update({ status: next }).eq("id", tripId);
+  if (statusError) return { error: statusError, tripStatus: trip.status };
+  return { error: null, tripStatus: next };
 }

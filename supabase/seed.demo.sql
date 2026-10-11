@@ -528,3 +528,43 @@ where exists (
   select 1 from public.trip_requests t where t.id = v.trip_id
 )
 on conflict (id) do nothing;
+
+-- Fan-out rows so the operator inbox includes demo trips after a reset.
+-- Migrations run before this seed, so the backfill migration does not see these rows.
+insert into public.trip_request_operators (trip_id, operator_id, status)
+select q.trip_request_id,
+  q.operator_id,
+  case
+    when t.status = 'declined' then 'declined'::public.trip_request_operator_status
+    else 'quoted'::public.trip_request_operator_status
+  end
+from public.quotes q
+join public.trip_requests t on t.id = q.trip_request_id
+on conflict (trip_id, operator_id) do nothing;
+
+insert into public.trip_request_operators (trip_id, operator_id, status)
+select t.id,
+  a.operator_id,
+  case
+    when t.status = 'declined' then 'declined'::public.trip_request_operator_status
+    else 'pending'::public.trip_request_operator_status
+  end
+from public.trip_requests t
+join public.aircraft a on a.id = t.aircraft_id
+on conflict (trip_id, operator_id) do nothing;
+
+-- Route-only demo requests (no aircraft). Two operators each, so one decline
+-- does not close the trip.
+insert into public.trip_request_operators (trip_id, operator_id, status)
+select v.trip_id, v.operator_id, 'pending'
+from (
+  values
+    ('77777777-7777-7777-7777-777777770001'::uuid, '44444444-4444-4444-4444-444444440002'::uuid),
+    ('77777777-7777-7777-7777-777777770001'::uuid, '44444444-4444-4444-4444-444444440001'::uuid),
+    ('77777777-7777-7777-7777-777777770009'::uuid, '44444444-4444-4444-4444-444444440006'::uuid),
+    ('77777777-7777-7777-7777-777777770009'::uuid, '44444444-4444-4444-4444-444444440007'::uuid),
+    ('77777777-7777-7777-7777-777777770101'::uuid, '44444444-4444-4444-4444-444444440002'::uuid),
+    ('77777777-7777-7777-7777-777777770101'::uuid, '44444444-4444-4444-4444-444444440001'::uuid)
+) as v(trip_id, operator_id)
+where exists (select 1 from public.trip_requests t where t.id = v.trip_id)
+on conflict (trip_id, operator_id) do nothing;

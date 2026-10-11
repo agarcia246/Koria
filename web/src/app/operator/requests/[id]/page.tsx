@@ -19,7 +19,8 @@ export default async function RequestDetailPage({
     .maybeSingle();
   if (!trip) notFound();
 
-  const [{ data: quotes }, { data: fleet }, { data: origin }, { data: dest }] = await Promise.all([
+  const [{ data: quotes }, { data: fleet }, { data: origin }, { data: dest }, { data: fanout }] =
+    await Promise.all([
     ctx.supabase
       .from("quotes")
       .select("*")
@@ -28,6 +29,12 @@ export default async function RequestDetailPage({
     ctx.supabase.from("aircraft").select("id, tail_number").eq("operator_id", ctx.operatorId),
     ctx.supabase.from("airports").select("city, iata").eq("id", trip.origin_id).single(),
     ctx.supabase.from("airports").select("city, iata").eq("id", trip.destination_id).single(),
+    ctx.supabase
+      .from("trip_request_operators")
+      .select("status")
+      .eq("trip_id", id)
+      .eq("operator_id", ctx.operatorId)
+      .maybeSingle(),
   ]);
 
   const previewFee = await resolvePlatformFee(ctx.supabase, {
@@ -46,6 +53,8 @@ export default async function RequestDetailPage({
       </h1>
       <p className="mt-2 text-sm text-warm">
         {new Date(trip.depart_at).toISOString()} · {trip.passengers} pax · {trip.status}
+        {fanout ? ` · your response ${fanout.status}` : ""}
+        {trip.aircraft_id ? "" : " · route request"}
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">
