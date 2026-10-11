@@ -9,6 +9,7 @@ import { resolvePlatformFee } from "@/lib/fees";
 import { computeOperatorAmount } from "@/lib/pricing";
 import { haversineNm } from "@/lib/geo";
 import { BROKER_DISCLOSURE } from "@/lib/disclosures";
+import { sendEmail } from "@/lib/email";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { sendOperatorInvite } from "@/lib/operators/invite";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
@@ -527,6 +528,7 @@ export async function uploadTripDocument(tripId: string, formData: FormData) {
 export async function adminReviewAccess(
   requestId: string,
   decision: "approved" | "declined",
+  formData: FormData,
 ) {
   const supabase = await createClient();
   const {
@@ -549,9 +551,17 @@ export async function adminReviewAccess(
     .single();
   if (!req) throw new Error("Not found");
 
+  const submittedNote = String(formData.get("decision_note") || "").trim();
+  const decisionNote =
+    decision === "declined" ? submittedNote || req.decision_note || null : null;
+
   const { error: reviewError } = await service
     .from("access_requests")
-    .update({ status: decision, reviewed_by: user.id })
+    .update({
+      status: decision,
+      reviewed_by: user.id,
+      ...(decision === "declined" && submittedNote ? { decision_note: submittedNote } : {}),
+    })
     .eq("id", requestId);
   await assertWrite("access_requests", reviewError, "/admin/access");
 
@@ -561,6 +571,12 @@ export async function adminReviewAccess(
       .update({ access_status: decision })
       .eq("id", req.user_id);
     await assertWrite("profiles", profileError, "/admin/access");
+  }
+
+  if (decision === "approved") {
+    await sendEmail("access_approved", req.email, { email: req.email });
+  } else if (decisionNote) {
+    await sendEmail("access_declined", req.email, { email: req.email, decisionNote });
   }
 
   revalidatePath("/admin/access");
@@ -604,6 +620,7 @@ export async function adminInviteAccess(formData: FormData) {
     await assertWrite("profiles", approveError, "/admin/access");
   }
 
+  await sendEmail("access_invited", email, { email });
   revalidatePath("/admin/access");
 }
 

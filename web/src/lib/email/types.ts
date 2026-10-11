@@ -12,6 +12,9 @@ export const EMAIL_TEMPLATES = [
   "documents_uploaded",
   "operator_invite",
   "operator_added",
+  "access_approved",
+  "access_declined",
+  "access_invited",
 ] as const;
 
 export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number];
@@ -64,6 +67,9 @@ export type EmailTemplateData = {
     role: "admin" | "member";
     portalUrl: string;
   };
+  access_approved: { email: string };
+  access_declined: { email: string; decisionNote: string };
+  access_invited: { email: string };
 };
 
 export type RenderedEmail = {

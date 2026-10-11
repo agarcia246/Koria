@@ -143,6 +143,39 @@ export function renderTemplate<T extends EmailTemplate>(
         html: layout(paragraphs, link),
       };
     }
+    case "access_approved": {
+      const row = data as EmailTemplateData["access_approved"];
+      const paragraphs = [
+        `KORIA access for ${row.email} is approved.`,
+        "Open the iOS app and sign in with that email.",
+      ];
+      return {
+        subject: "You can sign in to KORIA",
+        text: textOf(paragraphs),
+        html: layout(paragraphs),
+      };
+    }
+    case "access_declined": {
+      const row = data as EmailTemplateData["access_declined"];
+      const paragraphs = [`KORIA can't approve access for ${row.email}.`, row.decisionNote];
+      return {
+        subject: "KORIA access",
+        text: textOf(paragraphs),
+        html: layout(paragraphs),
+      };
+    }
+    case "access_invited": {
+      const row = data as EmailTemplateData["access_invited"];
+      const paragraphs = [
+        `You're invited to KORIA as ${row.email}.`,
+        "Open the iOS app and sign in with that email.",
+      ];
+      return {
+        subject: "You're invited to KORIA",
+        text: textOf(paragraphs),
+        html: layout(paragraphs),
+      };
+    }
     default: {
       const exhaustive: never = template;
       throw new Error(`Unknown email template: ${String(exhaustive)}`);
