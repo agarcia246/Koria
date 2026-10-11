@@ -15,6 +15,9 @@ on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- Airports (from app/Hopp/Networking/MockCatalog.swift)
+-- CI and local reset keep this 31-row baseline. runway_length_ft and fbo_name
+-- stay null here. Staging loads the full catalog with
+-- supabase/scripts/import_airports.ts, which upserts on icao and keeps these ids.
 -- ---------------------------------------------------------------------------
 insert into public.airports (id, icao, iata, name, city, region, country, time_zone, latitude, longitude) values
   ('11111111-1111-1111-1111-111111110001', 'KAUS', 'AUS', 'Austin-Bergstrom', 'Austin', 'Texas', 'USA', 'America/Chicago', 30.1945, -97.6699),
