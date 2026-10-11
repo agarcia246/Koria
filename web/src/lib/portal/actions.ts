@@ -9,11 +9,8 @@ import { resolvePlatformFee } from "@/lib/fees";
 import { computeOperatorAmount } from "@/lib/pricing";
 import { haversineNm } from "@/lib/geo";
 import { BROKER_DISCLOSURE } from "@/lib/disclosures";
-import {
-  nextStatusOnMarkPaid,
-  nextStatusOnOperatorDecline,
-  nextStatusOnQuoteSent,
-} from "@/lib/trips/state";
+import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
+import { nextStatusOnMarkPaid, nextStatusOnQuoteSent } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
 import { assertWrite } from "@/lib/portal/write";
 
@@ -286,6 +283,9 @@ export async function acceptPrice(tripId: string) {
   });
   await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
 
+  const { error: fanoutError } = await markFanoutQuoted(ctx.supabase, tripId, ctx.operatorId);
+  await assertWrite("trip_request_operators", fanoutError, `/operator/requests/${tripId}`);
+
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
     const { error: statusError } = await ctx.supabase
@@ -343,6 +343,9 @@ export async function sendQuote(tripId: string, formData: FormData) {
   });
   await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
 
+  const { error: fanoutError } = await markFanoutQuoted(ctx.supabase, tripId, ctx.operatorId);
+  await assertWrite("trip_request_operators", fanoutError, `/operator/requests/${tripId}`);
+
   if (isCounter && parentQuoteId) {
     const { error: counterError } = await ctx.supabase
       .from("quotes")
@@ -366,16 +369,11 @@ export async function sendQuote(tripId: string, formData: FormData) {
 
 export async function declineRequest(tripId: string) {
   const ctx = await requireOperatorContext();
-  const { data: trip } = await ctx.supabase
-    .from("trip_requests")
-    .select("*")
-    .eq("id", tripId)
-    .single();
-  if (!trip) throw new Error("Trip not found");
+  if (!ctx.operatorId) throw new Error("No operator");
 
-  const next = nextStatusOnOperatorDecline(trip.status);
-  const { error } = await ctx.supabase.from("trip_requests").update({ status: next }).eq("id", tripId);
-  await assertWrite("trip_requests", error, `/operator/requests/${tripId}`);
+  const service = createServiceClient();
+  const { error } = await declineOperatorFanout(service, tripId, ctx.operatorId);
+  await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
   revalidatePath(`/operator/requests/${tripId}`);
   revalidatePath("/operator/requests");
 }
