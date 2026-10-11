@@ -32,7 +32,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | trip_members | read roster on own trip; update own row | read roster on accessible trips | all on own policy | |
 | route_watches | own | none | all | A watch is private demand. Operators do not see who is watching a route. |
 | notifications | own profile | own profile | all | An operator reads notifications addressed to their profile, not another member's. |
-| job_runs | none | none | read | Inserts only from scheduled jobs (`run_noop_job`, `run_expire_quotes_job`). Security definer, executed by pg_cron. |
+| job_runs | none | none | read | Inserts only from scheduled jobs (`run_noop_job`, `run_expire_quotes_job`, `run_rollover_trips_job`). Security definer, executed by pg_cron. |
 
 ## Service-role-only
 

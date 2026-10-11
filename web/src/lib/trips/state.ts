@@ -46,6 +46,16 @@ export function nextStatusOnAllQuotesDeclined(current: TripStatus): TripStatus {
   return current;
 }
 
+export function nextStatusOnDepartureWindow(current: TripStatus): TripStatus {
+  if (current === "confirmed") return "upcoming";
+  return current;
+}
+
+export function nextStatusOnArrival(current: TripStatus): TripStatus {
+  if (current === "upcoming") return "completed";
+  return current;
+}
+
 export function nextStatusOnMarkPaid(current: TripStatus): TripStatus {
   assertTransition(current, "confirmed");
   return "confirmed";

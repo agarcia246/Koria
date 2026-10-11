@@ -1,5 +1,7 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import { BROKER_DISCLOSURE } from "@/lib/disclosures";
+import { haversineNm } from "@/lib/geo";
+import { estimateBlockMinutes } from "@/lib/pricing";
 import { loadTripPayload } from "@/lib/trips/load";
 import { nextStatusOnCustomerAccept } from "@/lib/trips/state";
 
@@ -49,6 +51,35 @@ export async function POST(
 
   const snapshot = (quote.carrier_disclosure_snapshot ?? {}) as Record<string, unknown>;
 
+  const [{ data: aircraft }, { data: origin }, { data: destination }] = await Promise.all([
+    auth.supabase.from("aircraft").select("model_id").eq("id", quote.aircraft_id).maybeSingle(),
+    auth.supabase.from("airports").select("latitude, longitude").eq("id", trip.origin_id).maybeSingle(),
+    auth.supabase
+      .from("airports")
+      .select("latitude, longitude")
+      .eq("id", trip.destination_id)
+      .maybeSingle(),
+  ]);
+  let estimatedBlockMinutes: number | null = null;
+  if (aircraft && origin && destination) {
+    const { data: model } = await auth.supabase
+      .from("aircraft_models")
+      .select("cruise_speed_ktas")
+      .eq("id", aircraft.model_id)
+      .maybeSingle();
+    if (model) {
+      const distanceNm = haversineNm(
+        origin.latitude,
+        origin.longitude,
+        destination.latitude,
+        destination.longitude,
+      );
+      // Same airborne estimate pricing uses (distance / cruise speed). There is
+      // no filed block time on the aircraft.
+      estimatedBlockMinutes = estimateBlockMinutes(distanceNm, model.cruise_speed_ktas);
+    }
+  }
+
   await auth.supabase.from("bookings").insert({
     trip_request_id: trip.id,
     quote_id: quote.id,
@@ -65,6 +96,7 @@ export async function POST(
       (snapshot.certificate_number as string) ?? operator?.certificate_number ?? null,
     broker_role_disclosure: BROKER_DISCLOSURE,
     fbo: trip.fbo,
+    estimated_block_minutes: estimatedBlockMinutes,
   });
 
   await auth.supabase

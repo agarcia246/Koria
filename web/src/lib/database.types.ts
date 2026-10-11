@@ -408,6 +408,7 @@ export type Database = {
           created_at: string
           currency: string
           customer_total: number
+          estimated_block_minutes: number | null
           fbo: string | null
           id: string
           operating_carrier_dba: string | null
@@ -426,6 +427,7 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_total: number
+          estimated_block_minutes?: number | null
           fbo?: string | null
           id?: string
           operating_carrier_dba?: string | null
@@ -444,6 +446,7 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_total?: number
+          estimated_block_minutes?: number | null
           fbo?: string | null
           id?: string
           operating_carrier_dba?: string | null
