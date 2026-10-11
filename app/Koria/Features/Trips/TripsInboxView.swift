@@ -82,6 +82,7 @@ struct TripDetailView: View {
     @Environment(AppDependencies.self) private var dependencies
     @State private var isWorking = false
     @State private var errorMessage: String?
+    @State private var cancelReason = ""
 
     var body: some View {
         Group {
@@ -154,6 +155,17 @@ struct TripDetailView: View {
                         .font(KoriaFont.sans(14))
                         .foregroundStyle(koria.muted)
                 }
+
+                if canCancel(trip) {
+                    cancelSection(trip)
+                } else if let reason = trip.cancellationReason, !reason.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionLabel(text: "Cancellation")
+                        Text(reason)
+                            .font(KoriaFont.sans(15))
+                            .foregroundStyle(koria.foreground)
+                    }
+                }
             }
             .padding(.horizontal, KoriaSpace.lg)
             .padding(.bottom, KoriaSpace.xxl)
@@ -223,6 +235,43 @@ struct TripDetailView: View {
                         .foregroundStyle(step.1 ? koria.foreground : koria.muted)
                 }
             }
+        }
+    }
+
+    private func canCancel(_ trip: Trip) -> Bool {
+        [.requested, .quoteReceived, .awaitingPayment, .confirmed, .upcoming].contains(trip.status)
+    }
+
+    private func cancelSection(_ trip: Trip) -> some View {
+        VStack(alignment: .leading, spacing: KoriaSpace.md) {
+            SectionLabel(text: "Cancel trip")
+            TextField("Reason", text: $cancelReason, axis: .vertical)
+                .font(KoriaFont.sans(15))
+                .lineLimit(2...4)
+            Text("Cancelling does not move money.")
+                .font(KoriaFont.sans(13))
+                .foregroundStyle(koria.muted)
+            KoriaButton(title: "Cancel trip", style: .secondary, isLoading: isWorking) {
+                Task { await cancel(trip) }
+            }
+        }
+    }
+
+    private func cancel(_ trip: Trip) async {
+        let reason = cancelReason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !reason.isEmpty else {
+            errorMessage = "A reason is required."
+            return
+        }
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            let updated = try await dependencies.client.cancelTrip(id: trip.id, reason: reason)
+            store.upsert(updated)
+            cancelReason = ""
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

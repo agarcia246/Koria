@@ -160,6 +160,8 @@ export function serializeTrip(
     baggage: Boolean(prefs.baggage),
     status: trip.status,
     booking: serializeBooking(booking),
+    cancellation_reason: trip.cancellation_reason,
+    cancelled_by: trip.cancelled_by,
   };
 }
 

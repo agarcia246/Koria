@@ -53,6 +53,10 @@ final class LiveKoriaClient: KoriaClient {
         try await post(path: "/api/v1/quotes/\(id)/decline", body: QuoteDecisionDTO(quoteID: id, accept: false))
     }
 
+    func cancelTrip(id: String, reason: String) async throws -> Trip {
+        try await post(path: "/api/v1/trips/\(id)/cancel", body: CancelTripDTO(reason: reason))
+    }
+
     func passport() async throws -> PassportProfile {
         try await get(path: "/api/v1/me/passport")
     }
