@@ -440,6 +440,48 @@ export async function cancelOperatorTrip(tripId: string, formData: FormData) {
   revalidatePath("/operator/bookings");
 }
 
+export async function uploadTripDocument(tripId: string, formData: FormData) {
+  const ctx = await requireOperatorContext();
+  if (!ctx.operatorId) throw new Error("No operator");
+
+  const requestedReturn = String(formData.get("return_path") || "");
+  const returnPath = requestedReturn.startsWith("/operator/")
+    ? requestedReturn
+    : `/operator/requests/${tripId}`;
+
+  const { data: trip, error: tripError } = await ctx.supabase
+    .from("trip_requests")
+    .select("id")
+    .eq("id", tripId)
+    .maybeSingle();
+  await assertWrite("trip_requests", tripError, returnPath);
+  if (!trip) throw new Error("Trip not found");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) throw new Error("A file is required");
+  const title = String(formData.get("title") || file.name).trim() || file.name;
+  const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80) || "document";
+  const storagePath = `${tripId}/${crypto.randomUUID()}-${safeName}`;
+
+  const { error: uploadError } = await ctx.supabase.storage
+    .from("trip-documents")
+    .upload(storagePath, file, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+  await assertWrite("trip_documents", uploadError, returnPath);
+
+  const { error: insertError } = await ctx.supabase.from("trip_documents").insert({
+    trip_request_id: tripId,
+    title,
+    storage_path: storagePath,
+  });
+  await assertWrite("trip_documents", insertError, returnPath);
+
+  revalidatePath(`/operator/requests/${tripId}`);
+  revalidatePath("/operator/bookings");
+}
+
 export async function adminReviewAccess(
   requestId: string,
   decision: "approved" | "declined",

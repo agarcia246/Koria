@@ -290,6 +290,13 @@ struct Trip: Identifiable, Hashable, Codable, Sendable {
     var booking: Booking?
     var cancellationReason: String? = nil
     var cancelledBy: String? = nil
+    var documents: [TripDocument] = []
+}
+
+struct TripDocument: Identifiable, Hashable, Codable, Sendable {
+    var id: String
+    var title: String
+    var url: String?
 }
 
 struct CarrierDisclosure: Hashable, Codable, Sendable {

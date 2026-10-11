@@ -1,7 +1,9 @@
 import type { createServiceClient } from "@/lib/supabase/admin";
-import { serializeTrip } from "@/lib/api/serialize";
+import { serializeTrip, type TripDocumentPayload } from "@/lib/api/serialize";
 
 type Client = ReturnType<typeof createServiceClient>;
+
+const DOCUMENT_URL_SECONDS = 10 * 60;
 
 export async function loadTripPayload(supabase: Client, tripId: string) {
   const { data: trip } = await supabase
@@ -11,18 +13,39 @@ export async function loadTripPayload(supabase: Client, tripId: string) {
     .maybeSingle();
   if (!trip) return null;
 
-  const [{ data: origin }, { data: destination }, { data: booking }] = await Promise.all([
-    supabase.from("airports").select("*").eq("id", trip.origin_id).single(),
-    supabase.from("airports").select("*").eq("id", trip.destination_id).single(),
-    supabase
-      .from("bookings")
-      .select("*")
-      .eq("trip_request_id", trip.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  const [{ data: origin }, { data: destination }, { data: booking }, { data: documents }] =
+    await Promise.all([
+      supabase.from("airports").select("*").eq("id", trip.origin_id).single(),
+      supabase.from("airports").select("*").eq("id", trip.destination_id).single(),
+      supabase
+        .from("bookings")
+        .select("*")
+        .eq("trip_request_id", trip.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("trip_documents")
+        .select("id, title, storage_path")
+        .eq("trip_request_id", trip.id)
+        .order("created_at", { ascending: false }),
+    ]);
 
   if (!origin || !destination) return null;
-  return serializeTrip(trip, origin, destination, booking);
+
+  const signed: TripDocumentPayload[] = [];
+  for (const document of documents ?? []) {
+    if (!document.title) continue;
+    let url: string | null = null;
+    if (document.storage_path) {
+      const { data } = await supabase.storage
+        .from("trip-documents")
+        .createSignedUrl(document.storage_path, DOCUMENT_URL_SECONDS);
+      url = data?.signedUrl ?? null;
+    }
+    signed.push({ id: document.id, title: document.title, url });
+  }
+
+  return serializeTrip(trip, origin, destination, booking, signed);
 }
+

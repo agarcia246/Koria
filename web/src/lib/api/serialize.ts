@@ -135,11 +135,18 @@ export function serializeBooking(b: BookingRow | null) {
   };
 }
 
+export type TripDocumentPayload = {
+  id: string;
+  title: string;
+  url: string | null;
+};
+
 export function serializeTrip(
   trip: TripRow,
   origin: AirportRow,
   destination: AirportRow,
   booking: BookingRow | null,
+  documents: TripDocumentPayload[] = [],
 ) {
   const prefs = (trip.prefs ?? {}) as Record<string, unknown>;
   return {
@@ -162,6 +169,7 @@ export function serializeTrip(
     booking: serializeBooking(booking),
     cancellation_reason: trip.cancellation_reason,
     cancelled_by: trip.cancelled_by,
+    documents,
   };
 }
 
