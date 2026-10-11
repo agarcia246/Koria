@@ -42,21 +42,29 @@ export default async function AccessAdminPage() {
               <tr key={r.id} className="border-b border-silver/30">
                 <td className="py-3">{r.email}</td>
                 <td>{r.status}</td>
-                <td className="text-warm">{r.note}</td>
-                <td className="text-right space-x-2">
+                <td className="text-warm">
+                  {r.note}
+                  {r.decision_note ? <span className="block">{r.decision_note}</span> : null}
+                </td>
+                <td className="text-right">
                   {r.status === "requested" && (
-                    <>
-                      <form action={approve} className="inline">
+                    <div className="flex items-center justify-end gap-3">
+                      <form action={approve}>
                         <button type="submit" className="text-xs text-warm hover:text-ink">
                           Approve
                         </button>
                       </form>
-                      <form action={decline} className="inline">
+                      <form action={decline} className="flex items-center gap-2">
+                        <input
+                          name="decision_note"
+                          placeholder="Note to email"
+                          className="w-36 border border-silver/50 bg-paper px-2 py-1 text-xs"
+                        />
                         <button type="submit" className="text-xs text-warm hover:text-ink">
                           Decline
                         </button>
                       </form>
-                    </>
+                    </div>
                   )}
                 </td>
               </tr>
