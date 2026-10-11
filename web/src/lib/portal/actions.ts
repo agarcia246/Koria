@@ -1,6 +1,8 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
@@ -139,6 +141,65 @@ export async function upsertPricing(aircraftId: string, formData: FormData) {
   await assertWrite("aircraft_pricing_rules", error, `/operator/fleet/${aircraftId}/pricing`);
 
   revalidatePath(`/operator/fleet/${aircraftId}/pricing`);
+}
+
+async function requireOperatorAdmin() {
+  const ctx = await requireOperatorContext();
+  if (!ctx.operatorId) throw new Error("No operator");
+  if (ctx.isAdmin) return ctx;
+  const { data: membership } = await ctx.supabase
+    .from("operator_members")
+    .select("role")
+    .eq("operator_id", ctx.operatorId)
+    .eq("profile_id", ctx.userId)
+    .maybeSingle();
+  if (membership?.role !== "admin") {
+    await assertWrite("operator_api_keys", { message: "Only an operator admin can manage API keys." }, "/operator/api-keys");
+  }
+  return ctx;
+}
+
+export async function dismissOperatorApiKey() {
+  const jar = await cookies();
+  jar.delete("operator_api_key");
+  redirect("/operator/api-keys");
+}
+
+/** Shows the plaintext once, in a short-lived httpOnly cookie. The database stores the hash. */
+export async function createOperatorApiKey() {
+  const ctx = await requireOperatorAdmin();
+  if (!ctx.operatorId) return;
+  const plaintext = `koria_${randomBytes(32).toString("base64url")}`;
+  const { error } = await ctx.supabase.from("operator_api_keys").insert({
+    operator_id: ctx.operatorId,
+    key_hash: createHash("sha256").update(plaintext).digest("hex"),
+    key_prefix: plaintext.slice(0, 12),
+    created_by: ctx.userId,
+  });
+  await assertWrite("operator_api_keys", error, "/operator/api-keys");
+  const jar = await cookies();
+  jar.set("operator_api_key", plaintext, {
+    httpOnly: true,
+    path: "/operator/api-keys",
+    maxAge: 60,
+    sameSite: "lax",
+  });
+  revalidatePath("/operator/api-keys");
+  redirect("/operator/api-keys");
+}
+
+export async function revokeOperatorApiKey(formData: FormData) {
+  const ctx = await requireOperatorAdmin();
+  if (!ctx.operatorId) return;
+  const id = String(formData.get("id") || "");
+  const { error } = await ctx.supabase
+    .from("operator_api_keys")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("operator_id", ctx.operatorId)
+    .is("revoked_at", null);
+  await assertWrite("operator_api_keys", error, "/operator/api-keys");
+  revalidatePath("/operator/api-keys");
 }
 
 export async function createAvailability(formData: FormData) {

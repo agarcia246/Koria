@@ -37,7 +37,7 @@ export default async function AvailabilityPage({
         <p className="text-sm text-warm">
           Upload an iCal or CSV for one aircraft. iCal events are blocked windows: the aircraft is busy, not free.
           A CSV may set kind to blocked or available (blocked if omitted). Columns: starts_at, ends_at, kind, notes.
-          Re-uploading replaces only this aircraft&apos;s imported rows. Manual rows stay.
+          Re-uploading replaces only this aircraft&apos;s imported rows. Manual rows and API rows stay.
         </p>
         <label className="block text-xs uppercase tracking-wide text-warm">
           Aircraft
