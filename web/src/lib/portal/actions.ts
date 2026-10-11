@@ -10,6 +10,7 @@ import { computeOperatorAmount } from "@/lib/pricing";
 import { haversineNm } from "@/lib/geo";
 import { BROKER_DISCLOSURE } from "@/lib/disclosures";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { sendOperatorInvite } from "@/lib/operators/invite";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
 import { confirmTripAfterPayment } from "@/lib/trips/confirm";
 import { nextStatusOnQuoteSent } from "@/lib/trips/state";
@@ -667,6 +668,12 @@ export async function adminCreateOperator(formData: FormData) {
         role: "admin",
       });
       await assertWrite("operator_members", memberError, "/admin/operators");
+      await sendOperatorInvite({
+        email: inviteEmail,
+        operatorName: operator.name,
+        role: "admin",
+        account: "existing",
+      });
     } else if (invited.user) {
       const { error: roleError } = await service
         .from("profiles")
@@ -679,9 +686,11 @@ export async function adminCreateOperator(formData: FormData) {
         role: "admin",
       });
       await assertWrite("operator_members", memberError, "/admin/operators");
-      await service.auth.admin.generateLink({
-        type: "magiclink",
+      await sendOperatorInvite({
         email: inviteEmail,
+        operatorName: operator.name,
+        role: "admin",
+        account: "new",
       });
     }
   }
