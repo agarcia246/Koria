@@ -8,6 +8,11 @@ export type PricingRuleLike = {
   mode: PricingMode;
 };
 
+export function estimateBlockMinutes(distanceNm: number, cruiseSpeedKtas: number): number {
+  const speed = Math.max(cruiseSpeedKtas || 1, 1);
+  return Math.max(1, Math.round((distanceNm / speed) * 60));
+}
+
 export function computeOperatorAmount(args: {
   rule: PricingRuleLike | null | undefined;
   distanceNm: number;
