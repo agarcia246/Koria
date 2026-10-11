@@ -1,10 +1,10 @@
 import type { Tables } from "@/lib/database.types";
 
-export const NOTIFICATION_COLUMNS = "id, title, body, read_at, created_at";
+export const NOTIFICATION_COLUMNS = "id, title, body, event, trip_request_id, read_at, created_at";
 
 type NotificationRow = Pick<
   Tables<"notifications">,
-  "id" | "title" | "body" | "read_at" | "created_at"
+  "id" | "title" | "body" | "event" | "trip_request_id" | "read_at" | "created_at"
 >;
 
 export function notificationJson(row: NotificationRow) {
@@ -12,6 +12,8 @@ export function notificationJson(row: NotificationRow) {
     id: row.id,
     title: row.title,
     body: row.body,
+    event: row.event,
+    trip_request_id: row.trip_request_id,
     read_at: row.read_at,
     created_at: row.created_at,
   };

@@ -119,7 +119,7 @@ export async function declineOperatorFanout(
   operatorId: string,
   reason?: string | null,
   actorId?: string | null,
-): Promise<{ error: { message: string } | null; tripStatus: TripStatus | null }> {
+): Promise<{ error: { message: string } | null; tripStatus: TripStatus | null; becameDeclined: boolean }> {
   const { data: updated, error: updateError } = await client
     .from("trip_request_operators")
     .update({
@@ -129,9 +129,9 @@ export async function declineOperatorFanout(
     .eq("trip_id", tripId)
     .eq("operator_id", operatorId)
     .select("trip_id");
-  if (updateError) return { error: updateError, tripStatus: null };
+  if (updateError) return { error: updateError, tripStatus: null, becameDeclined: false };
   if (!updated?.length) {
-    return { error: { message: "This operator is not on the request" }, tripStatus: null };
+    return { error: { message: "This operator is not on the request" }, tripStatus: null, becameDeclined: false };
   }
 
   const [{ data: rows, error: rowsError }, { data: pending, error: pendingError }, { data: trip, error: tripError }] =
@@ -141,14 +141,14 @@ export async function declineOperatorFanout(
       client.from("trip_requests").select("status").eq("id", tripId).maybeSingle(),
     ]);
   const readError = rowsError ?? pendingError ?? tripError;
-  if (readError) return { error: readError, tripStatus: trip?.status ?? null };
-  if (!trip) return { error: { message: "Trip not found" }, tripStatus: null };
+  if (readError) return { error: readError, tripStatus: trip?.status ?? null, becameDeclined: false };
+  if (!trip) return { error: { message: "Trip not found" }, tripStatus: null, becameDeclined: false };
 
   const allDeclined = (rows ?? []).length > 0 && (rows ?? []).every((row) => row.status === "declined");
   const noPendingQuote = (pending ?? []).length === 0;
-  if (!allDeclined || !noPendingQuote) return { error: null, tripStatus: trip.status };
+  if (!allDeclined || !noPendingQuote) return { error: null, tripStatus: trip.status, becameDeclined: false };
   if (trip.status !== "requested" && trip.status !== "quote_received") {
-    return { error: null, tripStatus: trip.status };
+    return { error: null, tripStatus: trip.status, becameDeclined: false };
   }
 
   const next = nextStatusOnOperatorDecline(trip.status);
@@ -165,6 +165,6 @@ export async function declineOperatorFanout(
         : {}),
     })
     .eq("id", tripId);
-  if (statusError) return { error: statusError, tripStatus: trip.status };
-  return { error: null, tripStatus: next };
+  if (statusError) return { error: statusError, tripStatus: trip.status, becameDeclined: false };
+  return { error: null, tripStatus: next, becameDeclined: true };
 }

@@ -1,6 +1,7 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import type { Json } from "@/lib/database.types";
 import { logError } from "@/lib/log";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { eligibleOperatorIds } from "@/lib/trips/fanout";
 import { loadTripPayload } from "@/lib/trips/load";
 
@@ -91,6 +92,11 @@ export async function POST(request: Request) {
     });
     return error(insertError?.message ?? "Failed to create trip", 500);
   }
+
+  enqueueNotification("request_received", {
+    tripId: trip.id,
+    operatorIds: eligible.operatorIds,
+  });
 
   const serialized = await loadTripPayload(auth.supabase, trip.id);
   return json(serialized, 201);

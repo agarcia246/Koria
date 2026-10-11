@@ -1,6 +1,7 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import { logError } from "@/lib/log";
 import type { TripStatus } from "@/lib/database.types";
+import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { loadTripPayload } from "@/lib/trips/load";
 import { canTransition } from "@/lib/trips/state";
 
@@ -63,6 +64,13 @@ export async function POST(
     logError("supabase_write_failed", { table: "bookings", message: bookingError.message });
     return error(bookingError.message, 500);
   }
+
+  enqueueNotification("trip_cancelled", {
+    tripId: trip.id,
+    reason,
+    outcome: "cancelled",
+    notify: "operators",
+  });
 
   const serialized = await loadTripPayload(auth.supabase, trip.id);
   return json(serialized);
