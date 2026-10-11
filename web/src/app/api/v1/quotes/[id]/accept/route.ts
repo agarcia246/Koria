@@ -42,6 +42,8 @@ export async function POST(
   }
 
   await auth.supabase.from("quotes").update({ status: "accepted" }).eq("id", quote.id);
+  // Fan-out can leave several pending quotes. Accepting one declines the rest
+  // and the insert below is the only booking.
   await auth.supabase
     .from("quotes")
     .update({ status: "declined" })

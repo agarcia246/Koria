@@ -142,9 +142,21 @@ struct TripDetailView: View {
                                 .foregroundStyle(koria.muted)
                         }
                     } else {
-                        ForEach(quotes) { quote in
-                            QuoteCard(quote: quote, isWorking: isWorking) { accept in
-                                Task { await decide(quoteID: quote.id, accept: accept) }
+                        ForEach(quoteGroups(quotes)) { group in
+                            VStack(alignment: .leading, spacing: KoriaSpace.sm) {
+                                Text(group.operatorName)
+                                    .font(KoriaFont.sans(13, weight: .medium))
+                                    .tracking(1.2)
+                                    .textCase(.uppercase)
+                                    .foregroundStyle(koria.muted)
+                                Text(group.aircraftName)
+                                    .font(KoriaFont.sans(16, weight: .medium))
+                                    .foregroundStyle(koria.foreground)
+                                ForEach(group.quotes) { quote in
+                                    QuoteCard(quote: quote, aircraftName: group.aircraftName, isWorking: isWorking) { accept in
+                                        Task { await decide(quoteID: quote.id, accept: accept) }
+                                    }
+                                }
                             }
                         }
                     }
@@ -238,6 +250,26 @@ struct TripDetailView: View {
         }
     }
 
+    private func quoteGroups(_ quotes: [Quote]) -> [OperatorQuoteGroup] {
+        let keys = Set(quotes.map { "\($0.operatorName)\u{1f}\($0.aircraftID)" })
+        return keys.sorted().compactMap { key -> OperatorQuoteGroup? in
+            let parts = key.split(separator: "\u{1f}", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { return nil }
+            let name = parts[0]
+            let aircraftID = parts[1]
+            let aircraftName = dependencies.catalog.listing(id: aircraftID)?.model.displayName ?? "Aircraft"
+            let grouped = quotes
+                .filter { $0.operatorName == name && $0.aircraftID == aircraftID }
+                .sorted { $0.createdAt > $1.createdAt }
+            return OperatorQuoteGroup(
+                operatorName: name,
+                aircraftID: aircraftID,
+                aircraftName: aircraftName,
+                quotes: grouped
+            )
+        }
+    }
+
     private func canCancel(_ trip: Trip) -> Bool {
         [.requested, .quoteReceived, .awaitingPayment, .confirmed, .upcoming].contains(trip.status)
     }
@@ -280,9 +312,15 @@ struct TripDetailView: View {
         defer { isWorking = false }
         do {
             if accept {
-                _ = try await dependencies.client.acceptQuote(id: quoteID)
+                let updated = try await dependencies.client.acceptQuote(id: quoteID)
+                store.upsert(updated)
+                let fresh = try await dependencies.client.quotes(tripID: updated.id)
+                for quote in fresh {
+                    store.upsert(quote)
+                }
             } else {
-                _ = try await dependencies.client.declineQuote(id: quoteID)
+                let quote = try await dependencies.client.declineQuote(id: quoteID)
+                store.upsert(quote)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -290,8 +328,17 @@ struct TripDetailView: View {
     }
 }
 
+struct OperatorQuoteGroup: Identifiable {
+    let operatorName: String
+    let aircraftID: String
+    let aircraftName: String
+    let quotes: [Quote]
+    var id: String { "\(operatorName)-\(aircraftID)" }
+}
+
 struct QuoteCard: View {
     let quote: Quote
+    var aircraftName: String
     var isWorking: Bool
     var decide: (Bool) -> Void
     @Environment(\.koria) private var koria
@@ -299,7 +346,7 @@ struct QuoteCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: KoriaSpace.md) {
             HStack {
-                Text("Your KORIA quote is ready")
+                Text(aircraftName)
                     .font(KoriaFont.sans(16, weight: .medium))
                     .foregroundStyle(koria.foreground)
                 Spacer()
