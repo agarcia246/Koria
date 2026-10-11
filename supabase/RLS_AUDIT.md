@@ -31,7 +31,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | trip_documents | own trip | read/write trips they can access | included in the customer policy | |
 | trip_members | read roster on own trip; update own row | read roster on accessible trips | all on own policy | |
 | route_watches | own | none | all | A watch is private demand. Operators do not see who is watching a route. |
-| notifications | own profile | own profile | all | An operator reads notifications addressed to their profile, not another member's. |
+| notifications | own profile | own profile | all | An operator reads notifications addressed to their profile, not another member's. `notifications_own` in `0001_init.sql` is `FOR ALL` with `profile_id = auth.uid()` (admin via `is_admin()`). `0004_rls_future_tables.sql` leaves that policy in place. `GET` and `POST /api/v1/me/notifications` use the caller JWT and also filter `profile_id`, so `/me` does not list another profile's rows. |
 | job_runs | none | none | read | Inserts only from scheduled jobs (`run_noop_job`, `run_expire_quotes_job`, `run_rollover_trips_job`). Security definer, executed by pg_cron. |
 
 ## Service-role-only
