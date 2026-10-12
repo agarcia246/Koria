@@ -218,6 +218,23 @@ final class MockKoriaClient: KoriaClient {
         return try await currentUser()
     }
 
+    func exportData() async throws -> Data {
+        try await pause(200)
+        let payload: [String: Any] = [
+            "profile": ["id": catalog.demoUser.id, "name": catalog.demoUser.name, "email": catalog.demoUser.email],
+            "trips": [],
+            "quotes": [],
+            "passengers": [],
+            "invoices": [],
+            "notifications": [],
+        ]
+        return try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted])
+    }
+
+    func deleteAccount() async throws {
+        try await pause(200)
+    }
+
     func notifications(limit: Int, offset: Int) async throws -> NotificationPage {
         try await pause(160)
         let page = Array(inbox.dropFirst(offset).prefix(limit))

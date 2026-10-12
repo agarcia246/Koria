@@ -78,6 +78,23 @@ final class LiveKoriaClient: KoriaClient {
         return try await currentUser()
     }
 
+    func exportData() async throws -> Data {
+        let url = baseURL.appending(path: "api/v1/me/export")
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        applyHeaders(&request)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw KoriaError.network("Invalid response.")
+        }
+        if (200...299).contains(http.statusCode) { return data }
+        throw apiError(data: data, status: http.statusCode)
+    }
+
+    func deleteAccount() async throws {
+        let _: EmptyResponse = try await post(path: "/api/v1/me/delete", body: EmptyJSON())
+    }
+
     func notifications(limit: Int, offset: Int) async throws -> NotificationPage {
         try await get(
             path: "/api/v1/me/notifications",
@@ -142,16 +159,23 @@ final class LiveKoriaClient: KoriaClient {
         case 404:
             throw KoriaError.notFound
         default:
-            if let payload = try? JSONDecoder().decode(APIErrorBody.self, from: data),
-               payload.error == "terms_required" {
-                throw KoriaError.termsRequired
-            }
-            if let payload = try? JSONDecoder().decode(APIErrorBody.self, from: data),
-               !payload.error.isEmpty {
-                throw KoriaError.network(payload.error)
-            }
-            throw KoriaError.network("Server returned \(http.statusCode).")
+            throw apiError(data: data, status: http.statusCode)
         }
+    }
+
+    private func apiError(data: Data, status: Int) -> KoriaError {
+        if status == 401 { return .unauthorized }
+        if status == 404 { return .notFound }
+        if let payload = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
+            switch payload.error {
+            case "terms_required": return .termsRequired
+            case "operator_member": return .operatorMember
+            case "open_trip": return .openTrip
+            default:
+                if !payload.error.isEmpty { return .network(payload.error) }
+            }
+        }
+        return .network("Server returned \(status).")
     }
 
     private var decoder: JSONDecoder {

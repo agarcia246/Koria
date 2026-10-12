@@ -400,6 +400,8 @@ enum KoriaError: LocalizedError, Equatable {
     case notImplemented
     case accessPending
     case termsRequired
+    case operatorMember
+    case openTrip
 
     var errorDescription: String? {
         switch self {
@@ -410,6 +412,8 @@ enum KoriaError: LocalizedError, Equatable {
         case .notImplemented: "This service is not connected yet."
         case .accessPending: "Your early access request is still pending."
         case .termsRequired: "Accept the current terms and privacy policy to request a trip."
+        case .operatorMember: "This account is on an operator team and cannot be deleted here."
+        case .openTrip: "A trip is awaiting payment, confirmed, or upcoming. You can delete the account after it is completed or cancelled."
         }
     }
 }

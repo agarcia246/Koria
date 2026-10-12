@@ -14,6 +14,7 @@
 		2C83528C64155FD948FD4AA0 /* KoriaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30E7FA2575A5F37BE81AFF1 /* KoriaTheme.swift */; };
 		2D6843A956D1E0B3BB12A570 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 353CC6BDC9F0298C17A9F686 /* KeychainStore.swift */; };
 		3743B70EAEB27E6AF18C92D5 /* PassportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED016A522B7A36E398BE5F8A /* PassportView.swift */; };
+		C4E81B09D7A25F63081C4B6E /* AccountSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A91C4E70B2D85F16304A7E19 /* AccountSettingsView.swift */; };
 		388188B41DB0E7593CFA4F13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F02460073A9F4CF6F2397A0B /* Assets.xcassets */; };
 		3F527936C663D7988FB6C5F3 /* InstrumentSerif-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E5B71EE53806EB2D899A046A /* InstrumentSerif-Regular.ttf */; };
 		411A01235F97F2109C7189B3 /* CompareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB33290450C672099888EFF /* CompareView.swift */; };
@@ -73,6 +74,7 @@
 		E5B71EE53806EB2D899A046A /* InstrumentSerif-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "InstrumentSerif-Regular.ttf"; sourceTree = "<group>"; };
 		E81154AC0F6D51D43FAD2D18 /* SearchHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHomeView.swift; sourceTree = "<group>"; };
 		ED016A522B7A36E398BE5F8A /* PassportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassportView.swift; sourceTree = "<group>"; };
+		A91C4E70B2D85F16304A7E19 /* AccountSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsView.swift; sourceTree = "<group>"; };
 		F02460073A9F4CF6F2397A0B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FE5B2D64DB65E648AC6659D2 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -160,6 +162,7 @@
 		6A30B4C6FC6A2FDC756538FF /* Passport */ = {
 			isa = PBXGroup;
 			children = (
+				A91C4E70B2D85F16304A7E19 /* AccountSettingsView.swift */,
 				ED016A522B7A36E398BE5F8A /* PassportView.swift */,
 			);
 			path = Passport;
@@ -377,6 +380,7 @@
 				9FBCBFBDAE0AED1288C9908C /* MockKoriaClient.swift in Sources */,
 				A645454CFD5EF88D35876D1A /* Models.swift in Sources */,
 				8B2D0F55C3E19A7426F5B1D3 /* LegalLinks.swift in Sources */,
+				C4E81B09D7A25F63081C4B6E /* AccountSettingsView.swift in Sources */,
 				3743B70EAEB27E6AF18C92D5 /* PassportView.swift in Sources */,
 				10E4FA03B9B96D2A84E1EAF7 /* RootView.swift in Sources */,
 				49C634AF117A99B01497155D /* SearchHomeView.swift in Sources */,
