@@ -28,7 +28,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | platform_fee_rules | read | read | write | |
 | tax_rules | read | read | write | Reference rates for charter FET, the domestic segment fee, the international facilities tax, and the Alaska/Hawaii departure tax. `0016_tax_rules.sql`. Quotes and bookings store `tax_rule_snapshot`; existing rows stay null. |
 | passport_stamps | own | none | all | |
-| payments | read via own booking | read via own quote | all | Customers cannot insert. Recording a wire stays an admin action. |
+| payments | read via own booking | read via own quote | all | Customers cannot insert. Recording a wire stays an admin action. `paid_at` is the date the admin entered. |
 | invoices | read via own booking | none | all | `0017_invoices.sql`. One invoice per booking. Operators do not see wire instructions. |
 | payouts | none | read own operator | all | A payout is operator compensation, not a customer record. |
 | trip_documents | own trip | read/write trips they can access | included in the customer policy | |

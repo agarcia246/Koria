@@ -16,7 +16,7 @@ import { sendEmail } from "@/lib/email";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { sendOperatorInvite } from "@/lib/operators/invite";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
-import { confirmTripAfterPayment } from "@/lib/trips/confirm";
+import { recordWirePayment } from "@/lib/payments/record";
 import { nextStatusOnQuoteSent } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
 import { parseAvailabilityFile } from "@/lib/availability/parse";
@@ -933,7 +933,7 @@ export async function adminCreateOperator(formData: FormData) {
   revalidatePath("/admin/operators");
 }
 
-export async function adminMarkPaid(bookingId: string) {
+export async function adminRecordPayment(bookingId: string, formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -947,9 +947,14 @@ export async function adminMarkPaid(bookingId: string) {
     .single();
   if (profile?.role !== "admin") throw new Error("Admin only");
 
-  const confirmed = await confirmTripAfterPayment(service, bookingId);
-  if (!confirmed.ok) {
-    await assertWrite(confirmed.table, confirmed.error, `/admin/bookings/${bookingId}`);
+  const recorded = await recordWirePayment(service, {
+    bookingId,
+    amount: Number(formData.get("amount")),
+    paidAt: String(formData.get("paid_at") || ""),
+    providerRef: String(formData.get("provider_ref") || ""),
+  });
+  if (!recorded.ok) {
+    await assertWrite(recorded.table, { message: recorded.message }, `/admin/bookings/${bookingId}`);
   }
 
   revalidatePath("/admin/bookings");

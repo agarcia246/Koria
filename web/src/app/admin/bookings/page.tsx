@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { adminMarkPaid } from "@/lib/portal/actions";
 
 export default async function AdminBookingsPage() {
   const supabase = await createClient();
@@ -23,7 +22,6 @@ export default async function AdminBookingsPage() {
         </thead>
         <tbody>
           {(bookings ?? []).map((b) => {
-            const mark = adminMarkPaid.bind(null, b.id);
             return (
               <tr key={b.id} className="border-b border-silver/30">
                 <td className="py-3">
@@ -35,11 +33,9 @@ export default async function AdminBookingsPage() {
                 <td className="tabular-nums">${Number(b.customer_total).toLocaleString()}</td>
                 <td className="text-right">
                   {b.status === "pending" && (
-                    <form action={mark}>
-                      <button type="submit" className="text-xs text-warm hover:text-ink">
-                        Mark paid
-                      </button>
-                    </form>
+                    <Link href={`/admin/bookings/${b.id}`} className="text-xs text-warm hover:text-ink">
+                      Record payment
+                    </Link>
                   )}
                 </td>
               </tr>
