@@ -75,6 +75,22 @@ insert into public.operators (
   )
 on conflict (id) do nothing;
 
+-- Demo operators are verified so local search is not empty. verified_by stays null.
+update public.operators
+set
+  verified_at = coalesce(verified_at, timestamptz '2026-01-01 00:00:00+00'),
+  certificate_reviewed_at = coalesce(certificate_reviewed_at, timestamptz '2026-01-01 00:00:00+00'),
+  certificate_review_notes = coalesce(certificate_review_notes, 'Demo seed. Not a certificate review.')
+where id in (
+  '44444444-4444-4444-4444-444444440001',
+  '44444444-4444-4444-4444-444444440002',
+  '44444444-4444-4444-4444-444444440003',
+  '44444444-4444-4444-4444-444444440004',
+  '44444444-4444-4444-4444-444444440005',
+  '44444444-4444-4444-4444-444444440006',
+  '44444444-4444-4444-4444-444444440007'
+);
+
 -- Crown Air uses a 12% operator-scoped rule. Solstice uses default_fee_bps = 800 (8%).
 insert into public.platform_fee_rules (id, scope, operator_id, bps, effective_from)
 values (

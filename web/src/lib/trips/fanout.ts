@@ -39,7 +39,7 @@ export async function eligibleOperatorIds(
     destination.longitude,
   );
 
-  let aircraftQuery = applyVerifiedOperatorFilter(client.from("aircraft").select("*"));
+  let aircraftQuery = applyVerifiedOperatorFilter(client.from("aircraft"));
   aircraftQuery = input.aircraftId
     ? aircraftQuery.eq("id", input.aircraftId)
     : applyCoarseAircraftFilters(aircraftQuery, {

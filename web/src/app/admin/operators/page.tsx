@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { adminCreateOperator } from "@/lib/portal/actions";
 import { createClient } from "@/lib/supabase/server";
 
@@ -60,15 +61,21 @@ export default async function OperatorsAdminPage() {
             <th>Code</th>
             <th>Legal</th>
             <th>Certificate</th>
+            <th>Verified</th>
           </tr>
         </thead>
         <tbody>
           {(operators ?? []).map((o) => (
             <tr key={o.id} className="border-b border-silver/30">
-              <td className="py-3">{o.name}</td>
+              <td className="py-3">
+                <Link href={`/admin/operators/${o.id}`} className="underline">
+                  {o.name}
+                </Link>
+              </td>
               <td>{o.code}</td>
               <td>{o.legal_name}</td>
               <td>{o.certificate_number}</td>
+              <td>{o.verified_at ? "Yes" : "No"}</td>
             </tr>
           ))}
         </tbody>
