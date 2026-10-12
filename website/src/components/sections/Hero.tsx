@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRef } from "react";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { gsap, useGSAP } from "@/lib/gsap";
-import { START_KORIA_HREF } from "@/lib/constants";
+import { RequestAccess } from "@/components/access/RequestAccess";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { useIsTouch } from "@/hooks/useIsTouch";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
@@ -140,7 +140,7 @@ export function Hero() {
             data-hero-cta
             className="pointer-events-auto mt-10 flex flex-wrap gap-4"
           >
-            <MagneticButton href={START_KORIA_HREF}>Start a Koria →</MagneticButton>
+            <RequestAccess>Start a Koria →</RequestAccess>
             <MagneticButton href="#how-it-works" variant="ghost" cursor="EXPLORE">
               Discover Koria
             </MagneticButton>

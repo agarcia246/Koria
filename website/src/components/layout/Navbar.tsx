@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { KoriaMark } from "@/components/ui/KoriaMark";
-import { MagneticButton } from "@/components/ui/MagneticButton";
-import { NAV_LINKS, START_KORIA_HREF } from "@/lib/constants";
+import { RequestAccess } from "@/components/access/RequestAccess";
+import { NAV_LINKS } from "@/lib/constants";
 import { cn } from "@/lib/cn";
 
 export function Navbar() {
@@ -35,9 +35,7 @@ export function Navbar() {
         </ul>
 
         <div className="hidden lg:block">
-          <MagneticButton href={START_KORIA_HREF} className="px-5 py-3">
-            Start a Koria →
-          </MagneticButton>
+          <RequestAccess className="px-5 py-3">Start a Koria →</RequestAccess>
         </div>
 
         <button
@@ -69,13 +67,13 @@ export function Navbar() {
             </li>
           ))}
           <li className="pt-6">
-            <a
-              href={START_KORIA_HREF}
+            <RequestAccess
+              appearance="link"
               className="label text-champagne"
-              onClick={() => setOpen(false)}
+              onOpen={() => setOpen(false)}
             >
               Start a Koria →
-            </a>
+            </RequestAccess>
           </li>
         </ul>
       </div>
