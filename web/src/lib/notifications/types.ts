@@ -14,6 +14,8 @@ import type { EmailTemplate, EmailTemplateData } from "@/lib/email";
  *   declined, plus the operator on an accepted quote). A withdraw notifies the
  *   customer only when this call is what moved the trip to declined.
  * - documents_uploaded: the customer.
+ * - invoice_issued: the customer. The PDF is attached. A signed link is not
+ *   used because the document URL pattern expires in 10 minutes.
  *
  * `notify` does not need a request. Cron jobs can call it directly.
  * HTTP handlers should use `enqueueNotification`, which schedules this after the response.
@@ -24,7 +26,8 @@ export type NotifyEvent =
   | "quote_accepted"
   | "booking_confirmed"
   | "trip_cancelled"
-  | "documents_uploaded";
+  | "documents_uploaded"
+  | "invoice_issued";
 
 export type NotifyPayloadMap = {
   request_received: { tripId: string; operatorIds: string[] };
@@ -38,6 +41,7 @@ export type NotifyPayloadMap = {
     notify: "customer" | "operators";
   };
   documents_uploaded: { tripId: string; documentTitle: string };
+  invoice_issued: { tripId: string; invoiceId: string };
 };
 
 export type NotifyInput = {

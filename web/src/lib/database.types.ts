@@ -1257,6 +1257,59 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          amount_due: number
+          bank_details: Json
+          booking_id: string
+          created_at: string
+          currency: string
+          due_date: string
+          id: string
+          line_items: Json
+          number: string
+          pdf_path: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_due: number
+          bank_details: Json
+          booking_id: string
+          created_at?: string
+          currency?: string
+          due_date: string
+          id?: string
+          line_items: Json
+          number?: string
+          pdf_path?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number
+          bank_details?: Json
+          booking_id?: string
+          created_at?: string
+          currency?: string
+          due_date?: string
+          id?: string
+          line_items?: Json
+          number?: string
+          pdf_path?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_rules: {
         Row: {
           amount: number | null

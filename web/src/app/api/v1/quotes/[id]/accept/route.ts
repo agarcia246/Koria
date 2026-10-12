@@ -2,6 +2,7 @@ import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import { brokerDisclosureTextFromSnapshot } from "@/lib/disclosures";
 import { haversineNm } from "@/lib/geo";
 import { logError } from "@/lib/log";
+import { createInvoiceForBooking } from "@/lib/invoices/create";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { pricedBlockMinutes } from "@/lib/pricing";
 import { loadTripPayload } from "@/lib/trips/load";
@@ -110,33 +111,40 @@ export async function POST(
     }
   }
 
-  const { error: bookingError } = await auth.supabase.from("bookings").insert({
-    trip_request_id: trip.id,
-    quote_id: quote.id,
-    status: "pending",
-    operator_amount: quote.operator_amount,
-    platform_fee_amount: quote.platform_fee_amount,
-    taxes_amount: quote.taxes_amount,
-    customer_total: quote.customer_total,
-    currency: quote.currency,
-    tax_rule_snapshot: quote.tax_rule_snapshot,
-    operating_carrier_legal_name:
-      (snapshot.legal_name as string) ?? operator?.legal_name ?? null,
-    operating_carrier_dba: (snapshot.dba as string) ?? operator?.dba ?? null,
-    certificate_number:
-      (snapshot.certificate_number as string) ?? operator?.certificate_number ?? null,
-    broker_role_disclosure: brokerDisclosureTextFromSnapshot(snapshot),
-    fbo: trip.fbo,
-    estimated_block_minutes: estimatedBlockMinutes,
-  });
+  const { data: booking, error: bookingError } = await auth.supabase
+    .from("bookings")
+    .insert({
+      trip_request_id: trip.id,
+      quote_id: quote.id,
+      status: "pending",
+      operator_amount: quote.operator_amount,
+      platform_fee_amount: quote.platform_fee_amount,
+      taxes_amount: quote.taxes_amount,
+      customer_total: quote.customer_total,
+      currency: quote.currency,
+      tax_rule_snapshot: quote.tax_rule_snapshot,
+      operating_carrier_legal_name:
+        (snapshot.legal_name as string) ?? operator?.legal_name ?? null,
+      operating_carrier_dba: (snapshot.dba as string) ?? operator?.dba ?? null,
+      certificate_number:
+        (snapshot.certificate_number as string) ?? operator?.certificate_number ?? null,
+      broker_role_disclosure: brokerDisclosureTextFromSnapshot(snapshot),
+      fbo: trip.fbo,
+      estimated_block_minutes: estimatedBlockMinutes,
+    })
+    .select("id")
+    .single();
 
   const { error: tripError } = await auth.supabase
     .from("trip_requests")
     .update({ status: "awaiting_payment" })
     .eq("id", trip.id);
 
-  if (bookingError) {
-    logError("supabase_write_failed", { table: "bookings", message: bookingError.message });
+  if (bookingError || !booking) {
+    logError("supabase_write_failed", {
+      table: "bookings",
+      message: bookingError?.message ?? "Booking insert failed",
+    });
   } else if (tripError) {
     logError("supabase_write_failed", { table: "trip_requests", message: tripError.message });
   } else {
@@ -145,6 +153,10 @@ export async function POST(
       quoteId: quote.id,
       operatorId: quote.operator_id,
     });
+    const invoice = await createInvoiceForBooking(auth.supabase, booking.id);
+    if (!invoice.ok) {
+      return error("Invoice could not be created", 500);
+    }
   }
 
   const serialized = await loadTripPayload(auth.supabase, trip.id);

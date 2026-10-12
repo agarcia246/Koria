@@ -33,10 +33,16 @@ export type SendEmailResult =
   | { ok: false; skipped: true }
   | { ok: false; skipped: false };
 
+export type EmailAttachment = {
+  filename: string;
+  content: Uint8Array;
+};
+
 export async function sendEmail<T extends EmailTemplate>(
   template: T,
   to: string,
   data: EmailTemplateData[T],
+  attachments?: EmailAttachment[],
 ): Promise<SendEmailResult> {
   const recipient = to.trim();
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -53,6 +59,19 @@ export async function sendEmail<T extends EmailTemplate>(
   }
 
   const rendered = renderTemplate(template, data);
+  const payload: Record<string, unknown> = {
+    from,
+    to: [recipient],
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+  };
+  if (attachments && attachments.length > 0) {
+    payload.attachments = attachments.map((file) => ({
+      filename: file.filename,
+      content: Buffer.from(file.content).toString("base64"),
+    }));
+  }
   let response: Response;
   try {
     response = await fetch(RESEND_URL, {
@@ -61,13 +80,7 @@ export async function sendEmail<T extends EmailTemplate>(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from,
-        to: [recipient],
-        subject: rendered.subject,
-        html: rendered.html,
-        text: rendered.text,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(10_000),
     });
   } catch (error) {

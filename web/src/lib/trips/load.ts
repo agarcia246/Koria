@@ -1,5 +1,5 @@
 import type { createServiceClient } from "@/lib/supabase/admin";
-import { serializeTrip, type TripDocumentPayload } from "@/lib/api/serialize";
+import { serializeTrip, type TripDocumentPayload, type TripInvoicePayload } from "@/lib/api/serialize";
 
 type Client = ReturnType<typeof createServiceClient>;
 
@@ -46,6 +46,23 @@ export async function loadTripPayload(supabase: Client, tripId: string) {
     signed.push({ id: document.id, title: document.title, url });
   }
 
-  return serializeTrip(trip, origin, destination, booking, signed);
+  let invoice: TripInvoicePayload | null = null;
+  if (trip.status === "awaiting_payment" && booking) {
+    const { data: row } = await supabase
+      .from("invoices")
+      .select("number, amount_due, due_date, bank_details")
+      .eq("booking_id", booking.id)
+      .maybeSingle();
+    if (row) {
+      invoice = {
+        number: row.number,
+        amount_due: Number(row.amount_due),
+        due_date: row.due_date,
+        bank_details: row.bank_details,
+      };
+    }
+  }
+
+  return serializeTrip(trip, origin, destination, booking, signed, invoice);
 }
 
