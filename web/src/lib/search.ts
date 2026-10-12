@@ -370,7 +370,7 @@ export function sameOperatorIds(left: string[], right: string[]): boolean {
 }
 
 async function loadAircraftPage(client: Client, body: SearchBody, scope: "page" | "all") {
-  let query = applyVerifiedOperatorFilter(client.from("aircraft").select("*"));
+  let query = applyVerifiedOperatorFilter(client.from("aircraft"));
   query = applyCoarseAircraftFilters(query, body).order("tail_number", { ascending: true });
   if (scope === "page") {
     const size = Math.min(

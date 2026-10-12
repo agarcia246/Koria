@@ -1,8 +1,26 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
+
 /**
  * Coarse aircraft prefilter shared by search and trip fan-out.
  * SQL may only drop rows isAircraftEligible would also drop (active, seats, amenities).
  * Range and blocked windows stay in that predicate.
  */
+
+function aircraftTable(client: SupabaseClient<Database>) {
+  return client.from("aircraft");
+}
+
+function aircraftRows(client: SupabaseClient<Database>) {
+  return client.from("aircraft").select("*");
+}
+
+type AircraftBuilder = ReturnType<typeof aircraftTable>;
+type AircraftFilter = ReturnType<typeof aircraftRows>;
+
+// Keep the helpers in value position so their return types stay available.
+void aircraftTable;
+void aircraftRows;
 
 export type CoarseAircraftRequest = {
   passengers: number;
@@ -14,11 +32,12 @@ export type CoarseAircraftRequest = {
 };
 
 /**
- * M6 KOR-45 adds operators.verified_at. Flip this on and both search and
- * fan-out start excluding operators who have not been verified. The column
- * does not exist yet, so the filter is a no-op.
+ * Search and fan-out exclude operators with a null verified_at.
+ * Unverified operators still use the portal.
  */
-export const VERIFIED_OPERATORS_REQUIRED = false;
+export const VERIFIED_OPERATORS_REQUIRED = true;
+
+const VERIFIED_OPERATOR_SELECT = "*, operators!inner(verified_at)";
 
 type CoarseQuery = {
   eq: (column: string, value: boolean) => CoarseQuery;
@@ -39,17 +58,15 @@ export function applyCoarseAircraftFilters<Q extends CoarseQuery>(
   return next as Q;
 }
 
-type VerifiedQuery = {
-  not: (column: string, operator: "is", value: null) => VerifiedQuery;
-};
-
 /**
- * KOR-45 hook. Search (`runSearch`) and fan-out (`eligibleOperatorIds`) both
- * call this. When VERIFIED_OPERATORS_REQUIRED is true the query must embed
- * `operators` so `operators.verified_at` is in scope:
- * `.not("operators.verified_at", "is", null)`.
+ * Search (`runSearch`) and fan-out (`eligibleOperatorIds`) both call this
+ * on `from("aircraft")`, before other filters. The select embeds `operators`
+ * and drops rows whose `verified_at` is null. The result is typed as an
+ * aircraft row; the embedded operator is only there for the filter.
  */
-export function applyVerifiedOperatorFilter<Q extends VerifiedQuery>(query: Q): Q {
-  if (!VERIFIED_OPERATORS_REQUIRED) return query;
-  return query.not("operators.verified_at", "is", null) as Q;
+export function applyVerifiedOperatorFilter(query: AircraftBuilder): AircraftFilter {
+  if (!VERIFIED_OPERATORS_REQUIRED) return query.select("*");
+  return query
+    .select(VERIFIED_OPERATOR_SELECT)
+    .not("operators.verified_at", "is", null) as unknown as AircraftFilter;
 }

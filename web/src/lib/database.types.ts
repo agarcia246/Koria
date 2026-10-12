@@ -722,6 +722,8 @@ export type Database = {
       operators: {
         Row: {
           certificate_number: string
+          certificate_review_notes: string | null
+          certificate_reviewed_at: string | null
           certificate_type: string
           city: string | null
           code: string
@@ -732,13 +734,18 @@ export type Database = {
           default_fee_bps: number | null
           home_airport_id: string | null
           id: string
+          insurance_certificate_path: string | null
           legal_name: string
           name: string
           operational_control_disclosure: string | null
           updated_at: string
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           certificate_number: string
+          certificate_review_notes?: string | null
+          certificate_reviewed_at?: string | null
           certificate_type?: string
           city?: string | null
           code: string
@@ -749,13 +756,18 @@ export type Database = {
           default_fee_bps?: number | null
           home_airport_id?: string | null
           id?: string
+          insurance_certificate_path?: string | null
           legal_name: string
           name: string
           operational_control_disclosure?: string | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           certificate_number?: string
+          certificate_review_notes?: string | null
+          certificate_reviewed_at?: string | null
           certificate_type?: string
           city?: string | null
           code?: string
@@ -766,10 +778,13 @@ export type Database = {
           default_fee_bps?: number | null
           home_airport_id?: string | null
           id?: string
+          insurance_certificate_path?: string | null
           legal_name?: string
           name?: string
           operational_control_disclosure?: string | null
           updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
@@ -777,6 +792,13 @@ export type Database = {
             columns: ["home_airport_id"]
             isOneToOne: false
             referencedRelation: "airports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operators_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

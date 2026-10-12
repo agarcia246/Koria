@@ -936,6 +936,89 @@ export async function adminCreateOperator(formData: FormData) {
   revalidatePath("/admin/operators");
 }
 
+async function requirePlatformAdmin(returnPath: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (profile?.role !== "admin") {
+    await assertWrite("operators", { message: "Admin only" }, returnPath);
+  }
+  return { supabase, userId: user.id };
+}
+
+export async function adminSaveCertificateReview(operatorId: string, formData: FormData) {
+  const returnPath = `/admin/operators/${operatorId}`;
+  const { supabase } = await requirePlatformAdmin(returnPath);
+  const notes = String(formData.get("certificate_review_notes") || "").trim();
+  const { error } = await supabase
+    .from("operators")
+    .update({
+      certificate_review_notes: notes || null,
+      certificate_reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", operatorId);
+  await assertWrite("operators", error, returnPath);
+  revalidatePath(returnPath);
+  revalidatePath("/admin/operators");
+}
+
+export async function adminUploadInsuranceCertificate(operatorId: string, formData: FormData) {
+  const returnPath = `/admin/operators/${operatorId}`;
+  const { supabase } = await requirePlatformAdmin(returnPath);
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    await assertWrite("operator-documents", { message: "A certificate file is required" }, returnPath);
+    return;
+  }
+  const upload = file;
+  const safeName = upload.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80) || "certificate";
+  const storagePath = `${operatorId}/${crypto.randomUUID()}-${safeName}`;
+  const { error: uploadError } = await supabase.storage.from("operator-documents").upload(storagePath, upload, {
+    contentType: upload.type || "application/octet-stream",
+    upsert: false,
+  });
+  await assertWrite("operator-documents", uploadError, returnPath);
+  const { error } = await supabase
+    .from("operators")
+    .update({ insurance_certificate_path: storagePath })
+    .eq("id", operatorId);
+  await assertWrite("operators", error, returnPath);
+  revalidatePath(returnPath);
+}
+
+export async function adminMarkOperatorVerified(operatorId: string) {
+  const returnPath = `/admin/operators/${operatorId}`;
+  const { supabase, userId } = await requirePlatformAdmin(returnPath);
+  const { error } = await supabase
+    .from("operators")
+    .update({
+      verified_at: new Date().toISOString(),
+      verified_by: userId,
+    })
+    .eq("id", operatorId);
+  await assertWrite("operators", error, returnPath);
+  revalidatePath(returnPath);
+  revalidatePath("/admin/operators");
+}
+
+export async function adminClearOperatorVerification(operatorId: string) {
+  const returnPath = `/admin/operators/${operatorId}`;
+  const { supabase } = await requirePlatformAdmin(returnPath);
+  const { error } = await supabase
+    .from("operators")
+    .update({
+      verified_at: null,
+      verified_by: null,
+    })
+    .eq("id", operatorId);
+  await assertWrite("operators", error, returnPath);
+  revalidatePath(returnPath);
+  revalidatePath("/admin/operators");
+}
+
 export async function adminRecordPayment(bookingId: string, formData: FormData) {
   const supabase = await createClient();
   const {

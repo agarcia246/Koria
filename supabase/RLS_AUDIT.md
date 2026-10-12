@@ -9,7 +9,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | profiles | own row | own row | all | |
 | access_requests | own | none | update | Operators do not review access. |
 | airports | read | read | write | |
-| operators | read | update own | write | |
+| operators | read | update own | write | `0022_operator_verification.sql` adds `verified_at`, `verified_by`, `certificate_reviewed_at`, `certificate_review_notes`, and `insurance_certificate_path`. A before-update trigger rejects changes to those columns unless the caller is an admin or the service role. Operator members can still update the rest of the row and use the portal while unverified. |
 | operator_members | none | read own membership | write | Customers do not see staff lists. |
 | operator_api_keys | none | admin member of that operator (`is_operator_admin`) | included | `0015`. Stores SHA-256 `key_hash` only. Select, insert, and update (revoke). No delete policy. The inbound API uses the service role after the hash lookup and still filters every write by that `operator_id`. Rate limiting is out of scope. |
 | aircraft_models | read | read | write | |
@@ -44,4 +44,4 @@ No `public` table is service-role-only.
 
 `job_runs` is the closest case: authenticated users cannot insert, and only an admin can select. The cron job writes through a security-definer function, which is the same path the service role would use. That keeps the schedule's history out of customer and operator clients without hiding it from an admin.
 
-`auth` and `storage` objects are outside this list. `storage.objects` for `aircraft-photos` is public-read with operator or admin write, from `0001_init.sql`. `storage.objects` for `trip-documents` is private. Operator members on the trip, the customer, and admins can read. Operator members and admins can write. Paths are `{trip_id}/{file}`. `storage.objects` for `invoices` is private. The customer on the booking and admins can read. Admins can write. Paths are `{invoice_id}.pdf`. The API uploads with the service role.
+`auth` and `storage` objects are outside this list. `storage.objects` for `aircraft-photos` is public-read with operator or admin write, from `0001_init.sql`. `storage.objects` for `trip-documents` is private. Operator members on the trip, the customer, and admins can read. Operator members and admins can write. Paths are `{trip_id}/{file}`. `storage.objects` for `invoices` is private. The customer on the booking and admins can read. Admins can write. Paths are `{invoice_id}.pdf`. The API uploads with the service role. `storage.objects` for `operator-documents` is private. Paths are `{operator_id}/{file}`. Admins can read and write. Operator members can read objects under their own operator id. `0022_operator_verification.sql`.
