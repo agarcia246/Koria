@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { createAircraft } from "@/lib/portal/actions";
+import { AGREEMENT_REQUIRED_MESSAGE, agreementIsCurrent } from "@/lib/agreements";
 import { AirportFind, searchPortalAirports } from "@/lib/portal/airports";
 import { requireOperatorContext } from "@/lib/portal/operator";
 
@@ -9,10 +11,14 @@ export default async function NewAircraftPage({
 }) {
   const ctx = await requireOperatorContext();
   const { q = "" } = await searchParams;
-  const [{ data: models }, airports] = await Promise.all([
+  const [{ data: models }, airports, agreement] = await Promise.all([
     ctx.supabase.from("aircraft_models").select("*").order("name"),
     searchPortalAirports(ctx.supabase, q),
+    ctx.operatorId
+      ? ctx.supabase.from("operators").select("agreement_version").eq("id", ctx.operatorId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const agreementCurrent = agreementIsCurrent(agreement.data?.agreement_version);
 
   return (
     <div className="max-w-xl">
@@ -46,10 +52,19 @@ export default async function NewAircraftPage({
             ))}
           </select>
         </label>
+        {agreementCurrent ? null : (
+          <p className="text-sm">
+            {AGREEMENT_REQUIRED_MESSAGE}{" "}
+            <Link href="/operator/agreement" className="underline">
+              Read the agreement
+            </Link>
+            .
+          </p>
+        )}
         <div className="flex flex-wrap gap-4 text-sm">
           {["wifi", "lavatory", "pets", "golf", "skis", "is_active"].map((name) => (
             <label key={name} className="flex items-center gap-2">
-              <input type="checkbox" name={name} defaultChecked={name === "is_active"} />
+              <input type="checkbox" name={name} defaultChecked={name === "is_active" && agreementCurrent} />
               {name}
             </label>
           ))}

@@ -9,7 +9,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | profiles | own row | own row | all | |
 | access_requests | own | none | update | Operators do not review access. |
 | airports | read | read | write | |
-| operators | read | update own | write | `0022_operator_verification.sql` adds `verified_at`, `verified_by`, `certificate_reviewed_at`, `certificate_review_notes`, and `insurance_certificate_path`. A before-update trigger rejects changes to those columns unless the caller is an admin or the service role. Operator members can still update the rest of the row and use the portal while unverified. |
+| operators | read | update own | write | `0022_operator_verification.sql` adds `verified_at`, `verified_by`, `certificate_reviewed_at`, `certificate_review_notes`, and `insurance_certificate_path`. A before-update trigger rejects changes to those columns unless the caller is an admin or the service role. Operator members can still update the rest of the row and use the portal while unverified. `0023_operator_agreement.sql` adds `agreement_version`, `agreement_accepted_at`, and `agreement_accepted_by`. A before-update trigger lets an operator admin, a platform admin, or the service role change those columns. A member cannot accept the agreement. |
 | operator_members | none | read own membership | write | Customers do not see staff lists. |
 | operator_api_keys | none | admin member of that operator (`is_operator_admin`) | included | `0015`. Stores SHA-256 `key_hash` only. Select, insert, and update (revoke). No delete policy. The inbound API uses the service role after the hash lookup and still filters every write by that `operator_id`. Rate limiting is out of scope. |
 | aircraft_models | read | read | write | |

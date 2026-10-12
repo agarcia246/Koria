@@ -1,3 +1,4 @@
+import { AGREEMENT_REQUIRED_MESSAGE, agreementIsCurrent } from "@/lib/agreements";
 import { updateAircraft, uploadAircraftPhoto } from "@/lib/portal/actions";
 import { AirportFind, airportsByIds, searchPortalAirports } from "@/lib/portal/airports";
 import { requireOperatorContext } from "@/lib/portal/operator";
@@ -21,7 +22,7 @@ export default async function EditAircraftPage({
     .maybeSingle();
   if (!aircraft) notFound();
 
-  const [{ data: models }, matches, currentBase, { data: photos }] = await Promise.all([
+  const [{ data: models }, matches, currentBase, { data: photos }, { data: operator }] = await Promise.all([
     ctx.supabase.from("aircraft_models").select("*").order("name"),
     searchPortalAirports(ctx.supabase, q),
     airportsByIds(ctx.supabase, aircraft.home_base_id ? [aircraft.home_base_id] : []),
@@ -30,7 +31,9 @@ export default async function EditAircraftPage({
       .select("*")
       .eq("aircraft_id", id)
       .order("sort_order"),
+    ctx.supabase.from("operators").select("agreement_version").eq("id", aircraft.operator_id).maybeSingle(),
   ]);
+  const agreementCurrent = agreementIsCurrent(operator?.agreement_version);
   const airports = [...currentBase, ...matches.filter((airport) => airport.id !== aircraft.home_base_id)];
 
   const update = updateAircraft.bind(null, id);
@@ -128,6 +131,15 @@ export default async function EditAircraftPage({
             ))}
           </select>
         </label>
+        {agreementCurrent ? null : (
+          <p className="text-sm">
+            {AGREEMENT_REQUIRED_MESSAGE}{" "}
+            <Link href="/operator/agreement" className="underline">
+              Read the agreement
+            </Link>
+            . Saving with Active checked is rejected. Aircraft already active stay active until a save turns them off.
+          </p>
+        )}
         <div className="flex flex-wrap gap-4 text-sm">
           {(
             [

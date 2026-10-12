@@ -1,15 +1,16 @@
 import Link from "next/link";
+import { AGREEMENT_REQUIRED_MESSAGE, agreementIsCurrent } from "@/lib/agreements";
 import { requireOperatorContext } from "@/lib/portal/operator";
 
 export default async function FleetPage() {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) return <p>No operator</p>;
 
-  const { data: aircraft } = await ctx.supabase
-    .from("aircraft")
-    .select("*")
-    .eq("operator_id", ctx.operatorId)
-    .order("tail_number");
+  const [{ data: aircraft }, { data: operator }] = await Promise.all([
+    ctx.supabase.from("aircraft").select("*").eq("operator_id", ctx.operatorId).order("tail_number"),
+    ctx.supabase.from("operators").select("agreement_version").eq("id", ctx.operatorId).maybeSingle(),
+  ]);
+  const agreementCurrent = agreementIsCurrent(operator?.agreement_version);
 
   const modelIds = Array.from(new Set((aircraft ?? []).map((a) => a.model_id)));
   const { data: models } = modelIds.length
@@ -25,6 +26,15 @@ export default async function FleetPage() {
           Add aircraft
         </Link>
       </div>
+      {agreementCurrent ? null : (
+        <p className="mt-6 max-w-xl text-sm">
+          {AGREEMENT_REQUIRED_MESSAGE}{" "}
+          <Link href="/operator/agreement" className="underline">
+            Read the agreement
+          </Link>
+          . Aircraft already active stay active.
+        </p>
+      )}
       <table className="mt-8 w-full text-sm">
         <thead>
           <tr className="border-b border-silver/40 text-left text-xs uppercase tracking-wide text-warm">

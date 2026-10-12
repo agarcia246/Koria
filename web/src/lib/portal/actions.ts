@@ -11,6 +11,7 @@ import { resolvePlatformFee } from "@/lib/fees";
 import { computeOperatorAmount } from "@/lib/pricing";
 import { computeTaxes, passengerLegs, type TaxRuleInput } from "@/lib/taxes";
 import { haversineNm } from "@/lib/geo";
+import { AGREEMENT_REQUIRED_MESSAGE, CURRENT_OPERATOR_AGREEMENT, operatorHasCurrentAgreement } from "@/lib/agreements";
 import { brokerDisclosureFields } from "@/lib/disclosures";
 import { sendEmail } from "@/lib/email";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
@@ -30,9 +31,58 @@ export async function signOut() {
   redirect("/login");
 }
 
+async function rejectIfActivatingWithoutAgreement(
+  supabase: Awaited<ReturnType<typeof requireOperatorContext>>["supabase"],
+  operatorId: string,
+  activating: boolean,
+  returnPath: string,
+) {
+  if (!activating) return;
+  const agreement = await operatorHasCurrentAgreement(supabase, operatorId);
+  if (!agreement.ok) {
+    await assertWrite("operators", { message: agreement.message }, returnPath);
+    return;
+  }
+  if (!agreement.current) {
+    await assertWrite("aircraft", { message: AGREEMENT_REQUIRED_MESSAGE }, returnPath);
+  }
+}
+
+export async function acceptOperatorAgreement() {
+  const ctx = await requireOperatorContext();
+  if (!ctx.operatorId) throw new Error("No operator membership");
+  const { data: membership } = await ctx.supabase
+    .from("operator_members")
+    .select("role")
+    .eq("operator_id", ctx.operatorId)
+    .eq("profile_id", ctx.userId)
+    .maybeSingle();
+  if (membership?.role !== "admin") {
+    await assertWrite(
+      "operators",
+      { message: "Only an operator admin can accept the agreement." },
+      "/operator/agreement",
+    );
+  }
+  const { error } = await ctx.supabase
+    .from("operators")
+    .update({
+      agreement_version: CURRENT_OPERATOR_AGREEMENT.version,
+      agreement_accepted_at: new Date().toISOString(),
+      agreement_accepted_by: ctx.userId,
+    })
+    .eq("id", ctx.operatorId);
+  await assertWrite("operators", error, "/operator/agreement");
+  revalidatePath("/operator/agreement");
+  revalidatePath("/operator/fleet");
+}
+
 export async function createAircraft(formData: FormData) {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) throw new Error("No operator membership");
+
+  const activating = formData.get("is_active") === "on";
+  await rejectIfActivatingWithoutAgreement(ctx.supabase, ctx.operatorId, activating, "/operator/fleet/new");
 
   const { data, error } = await ctx.supabase
     .from("aircraft")
@@ -67,6 +117,21 @@ export async function createAircraft(formData: FormData) {
 
 export async function updateAircraft(aircraftId: string, formData: FormData) {
   const ctx = await requireOperatorContext();
+  const returnPath = `/operator/fleet/${aircraftId}`;
+  const { data: existing, error: existingError } = await ctx.supabase
+    .from("aircraft")
+    .select("operator_id")
+    .eq("id", aircraftId)
+    .maybeSingle();
+  await assertWrite("aircraft", existingError, returnPath);
+  if (!existing) throw new Error("Aircraft not found");
+  await rejectIfActivatingWithoutAgreement(
+    ctx.supabase,
+    existing.operator_id,
+    formData.get("is_active") === "on",
+    returnPath,
+  );
+
   const { error } = await ctx.supabase
     .from("aircraft")
     .update({
