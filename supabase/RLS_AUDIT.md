@@ -30,7 +30,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | passport_stamps | own | none | all | |
 | payments | read via own booking | read via own quote | all | Customers cannot insert. Recording a wire stays an admin action. `paid_at` is the date the admin entered. |
 | invoices | read via own booking | none | all | `0017_invoices.sql`. One invoice per booking. Operators do not see wire instructions. |
-| payouts | none | read own operator | all | A payout is operator compensation, not a customer record. |
+| payouts | none | read own operator | all | A payout is operator compensation, not a customer record. `run_rollover_trips_job` inserts an unpaid row when a trip completes, for `operator_amount - payout_adjustment`. Admin marks it sent with a date and reference. |
 | trip_documents | own trip | read/write trips they can access | included in the customer policy | |
 | trip_members | read roster on own trip; update own row | read roster on accessible trips | all on own policy | |
 | route_watches | own | none | all | A watch is private demand. Operators do not see who is watching a route. |
