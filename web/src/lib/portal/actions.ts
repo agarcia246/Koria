@@ -887,6 +887,13 @@ export async function adminReviewAccess(
     .eq("id", requestId)
     .single();
   if (!req) throw new Error("Not found");
+  if (req.kind === "operator" && decision === "approved") {
+    await assertWrite(
+      "access_requests",
+      { message: "Create the operator from this application. That does not grant customer access." },
+      "/admin/access",
+    );
+  }
 
   const submittedNote = String(formData.get("decision_note") || "").trim();
   const decisionNote =
@@ -915,7 +922,7 @@ export async function adminReviewAccess(
     ),
   });
 
-  if (req.user_id) {
+  if (req.user_id && req.kind !== "operator") {
     const { error: profileError } = await service
       .from("profiles")
       .update({ access_status: decision })
@@ -923,7 +930,7 @@ export async function adminReviewAccess(
     await assertWrite("profiles", profileError, "/admin/access");
   }
 
-  if (decision === "approved") {
+  if (decision === "approved" && req.kind !== "operator") {
     await sendEmail("access_approved", req.email, { email: req.email });
   } else if (decisionNote) {
     await sendEmail("access_declined", req.email, { email: req.email, decisionNote });
@@ -1001,6 +1008,32 @@ export async function adminCreateOperator(formData: FormData) {
     .single();
   if (profile?.role !== "admin") throw new Error("Admin only");
 
+  const applicationId = String(formData.get("application_id") || "").trim();
+  const inviteEmail = String(formData.get("invite_email") || "").trim().toLowerCase();
+  const returnPath = applicationId ? `/admin/operators?application=${applicationId}` : "/admin/operators";
+  if (applicationId) {
+    const { data: application, error: applicationError } = await service
+      .from("access_requests")
+      .select("id, kind, status, email")
+      .eq("id", applicationId)
+      .maybeSingle();
+    await assertWrite("access_requests", applicationError, returnPath);
+    if (!application || application.kind !== "operator" || application.status !== "requested") {
+      await assertWrite(
+        "access_requests",
+        { message: "That operator application is no longer open." },
+        returnPath,
+      );
+    }
+    if (!inviteEmail) {
+      await assertWrite(
+        "operators",
+        { message: "An invite email is required to approve an operator application." },
+        returnPath,
+      );
+    }
+  }
+
   const { data: operator, error } = await service
     .from("operators")
     .insert({
@@ -1022,10 +1055,9 @@ export async function adminCreateOperator(formData: FormData) {
     .select("*")
     .single();
 
-  await assertWrite("operators", error, "/admin/operators");
+  await assertWrite("operators", error, returnPath);
   if (!operator) throw new Error("Failed to create operator");
 
-  const inviteEmail = String(formData.get("invite_email") || "").trim().toLowerCase();
   if (inviteEmail) {
     const { data: invited, error: inviteError } = await service.auth.admin.createUser({
       email: inviteEmail,
@@ -1041,13 +1073,13 @@ export async function adminCreateOperator(formData: FormData) {
         .from("profiles")
         .update({ role: "operator", access_status: "approved" })
         .eq("id", found.id);
-      await assertWrite("profiles", roleError, "/admin/operators");
+      await assertWrite("profiles", roleError, returnPath);
       const { error: memberError } = await service.from("operator_members").insert({
         operator_id: operator.id,
         profile_id: found.id,
         role: "admin",
       });
-      await assertWrite("operator_members", memberError, "/admin/operators");
+      await assertWrite("operator_members", memberError, returnPath);
       await sendOperatorInvite({
         email: inviteEmail,
         operatorName: operator.name,
@@ -1059,13 +1091,13 @@ export async function adminCreateOperator(formData: FormData) {
         .from("profiles")
         .update({ role: "operator", access_status: "approved" })
         .eq("id", invited.user.id);
-      await assertWrite("profiles", roleError, "/admin/operators");
+      await assertWrite("profiles", roleError, returnPath);
       const { error: memberError } = await service.from("operator_members").insert({
         operator_id: operator.id,
         profile_id: invited.user.id,
         role: "admin",
       });
-      await assertWrite("operator_members", memberError, "/admin/operators");
+      await assertWrite("operator_members", memberError, returnPath);
       await sendOperatorInvite({
         email: inviteEmail,
         operatorName: operator.name,
@@ -1075,7 +1107,25 @@ export async function adminCreateOperator(formData: FormData) {
     }
   }
 
+  if (applicationId) {
+    const { error: reviewError } = await service
+      .from("access_requests")
+      .update({ status: "approved", reviewed_by: user.id })
+      .eq("id", applicationId)
+      .eq("kind", "operator")
+      .eq("status", "requested");
+    await assertWrite("access_requests", reviewError, returnPath);
+    await recordAudit(service, {
+      action: "access.approve",
+      entityType: "access_request",
+      entityId: applicationId,
+      summary: `Created ${operator.name} from the operator application for ${inviteEmail}. Customer access was not granted.`,
+      diff: scalarDiff({ status: "requested" }, { status: "approved" }),
+    });
+  }
+
   revalidatePath("/admin/operators");
+  revalidatePath("/admin/access");
 }
 
 async function requirePlatformAdmin(returnPath: string) {

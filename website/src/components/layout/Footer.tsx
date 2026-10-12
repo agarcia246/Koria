@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { KoriaMark } from "@/components/ui/KoriaMark";
+import { OperatorApplication } from "@/components/access/OperatorApplication";
 import { APP_STORE_URL, CONTACT_HREF, INSTAGRAM_HREF, NAV_LINKS } from "@/lib/constants";
 
 export function Footer() {
@@ -47,6 +48,9 @@ export function Footer() {
               </li>
               <li>
                 <a href={CONTACT_HREF}>Contact</a>
+              </li>
+              <li>
+                <OperatorApplication className="transition-colors hover:text-ivory" />
               </li>
             </ul>
           </div>

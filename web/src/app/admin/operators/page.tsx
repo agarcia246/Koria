@@ -2,12 +2,38 @@ import Link from "next/link";
 import { adminCreateOperator } from "@/lib/portal/actions";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function OperatorsAdminPage() {
+export default async function OperatorsAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ application?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
-  const { data: operators } = await supabase
-    .from("operators")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const applicationId = params.application ?? "";
+  const { data: application } = applicationId
+    ? await supabase
+        .from("access_requests")
+        .select("id, kind, status, email, company_name, certificate_number, note")
+        .eq("id", applicationId)
+        .maybeSingle()
+    : { data: null };
+  const prefill =
+    application?.kind === "operator" && application.status === "requested" ? application : null;
+
+  const { data: operators } = await supabase.from("operators").select("*").order("created_at", { ascending: false });
+
+  const defaults: Record<string, string> = {
+    certificate_type: "Part 135",
+    ...(prefill
+      ? {
+          name: prefill.company_name ?? "",
+          legal_name: prefill.company_name ?? "",
+          certificate_number: prefill.certificate_number ?? "",
+          contact_email: prefill.email,
+          invite_email: prefill.email,
+        }
+      : {}),
+  };
 
   return (
     <div>
@@ -15,8 +41,16 @@ export default async function OperatorsAdminPage() {
       <p className="mt-2 text-sm text-warm">
         Portal is the real onboarding path. Seed SQL may include a demo operator for local convenience.
       </p>
+      {prefill ? (
+        <p className="mt-4 text-sm">
+          Operator application from {prefill.email}. Creating this operator sends the invite and does not grant
+          customer access.
+          {prefill.note ? <span className="mt-1 block text-warm">{prefill.note}</span> : null}
+        </p>
+      ) : null}
 
       <form action={adminCreateOperator} className="mt-8 grid grid-cols-2 gap-4 max-w-2xl">
+        {prefill ? <input type="hidden" name="application_id" value={prefill.id} /> : null}
         {(
           [
             ["name", "Display name"],
@@ -36,8 +70,8 @@ export default async function OperatorsAdminPage() {
             {label}
             <input
               name={name}
-              required={["name", "code", "legal_name", "certificate_number"].includes(name)}
-              defaultValue={name === "certificate_type" ? "Part 135" : undefined}
+              required={["name", "code", "legal_name", "certificate_number"].includes(name) || (name === "invite_email" && Boolean(prefill))}
+              defaultValue={defaults[name] ?? ""}
               className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2 text-sm"
             />
           </label>
