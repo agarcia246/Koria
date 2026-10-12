@@ -1,3 +1,4 @@
+import { recordAudit, scalarDiff } from "@/lib/audit";
 import { error, json } from "@/lib/api/auth";
 import { isOperatorKey, requireOperatorApiKey } from "@/lib/api/operator-key";
 import { ownAircraftByTail } from "@/lib/operator-api/scope";
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const requestId = crypto.randomUUID();
   const auth = await requireOperatorApiKey(request);
   if (!isOperatorKey(auth)) return auth;
 
@@ -68,23 +70,50 @@ export async function PUT(request: Request) {
     });
   }
 
+  const { count: previousWindows } = await auth.supabase
+    .from("aircraft_availability")
+    .select("id", { count: "exact", head: true })
+    .eq("aircraft_id", owned.aircraft.id)
+    .eq("source", "api");
+
   const { error: deleteError } = await auth.supabase
     .from("aircraft_availability")
     .delete()
     .eq("aircraft_id", owned.aircraft.id)
     .eq("source", "api");
   if (deleteError) {
-    logError("supabase_write_failed", { table: "aircraft_availability", message: deleteError.message });
+    logError("supabase_write_failed", {
+      table: "aircraft_availability",
+      message: deleteError.message,
+      request_id: requestId,
+    });
     return error(deleteError.message, 500);
   }
 
   if (rows.length) {
     const { error: insertError } = await auth.supabase.from("aircraft_availability").insert(rows);
     if (insertError) {
-      logError("supabase_write_failed", { table: "aircraft_availability", message: insertError.message });
+      logError("supabase_write_failed", {
+        table: "aircraft_availability",
+        message: insertError.message,
+        request_id: requestId,
+      });
       return error(insertError.message, 500);
     }
   }
+
+  await recordAudit(auth.supabase, {
+    action: "availability.replace",
+    entityType: "aircraft",
+    entityId: owned.aircraft.id,
+    summary: `Replaced API availability for ${owned.aircraft.tail_number}`,
+    diff: scalarDiff(
+      { api_window_count: previousWindows ?? 0 },
+      { api_window_count: rows.length },
+    ),
+    requestId,
+    actorRole: "operator",
+  });
 
   return json({ aircraft_id: owned.aircraft.id, replaced: rows.length });
 }

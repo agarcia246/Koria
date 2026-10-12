@@ -1,3 +1,4 @@
+import { recordAudit, scalarDiff } from "@/lib/audit";
 import { error, json } from "@/lib/api/auth";
 import { isOperatorKey, requireOperatorApiKey } from "@/lib/api/operator-key";
 import { airportIdByIcao, ownAircraftByTail, pricingMode } from "@/lib/operator-api/scope";
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const requestId = crypto.randomUUID();
   const auth = await requireOperatorApiKey(request);
   if (!isOperatorKey(auth)) return auth;
 
@@ -64,6 +66,14 @@ export async function PUT(request: Request) {
     };
 
     if (typeof item.id === "string" && item.id) {
+      const { data: before } = await auth.supabase
+        .from("empty_legs")
+        .select(
+          "aircraft_id, origin_id, destination_id, depart_at, seats_available, price, pricing_mode, status, whole_aircraft, notes",
+        )
+        .eq("id", item.id)
+        .eq("operator_id", auth.operatorId)
+        .maybeSingle();
       const { data, error: updateError } = await auth.supabase
         .from("empty_legs")
         .update(payload)
@@ -71,11 +81,35 @@ export async function PUT(request: Request) {
         .eq("operator_id", auth.operatorId)
         .select("id");
       if (updateError) {
-        logError("supabase_write_failed", { table: "empty_legs", message: updateError.message });
+        logError("supabase_write_failed", {
+          table: "empty_legs",
+          message: updateError.message,
+          request_id: requestId,
+        });
         return error(updateError.message, 500);
       }
       if (!data?.length) return error("Empty leg not on this operator", 404);
       ids.push(data[0].id);
+      await recordAudit(auth.supabase, {
+        action: "empty_leg.update",
+        entityType: "empty_leg",
+        entityId: data[0].id,
+        summary: `Updated empty leg via operator API`,
+        diff: scalarDiff(before, {
+          aircraft_id: payload.aircraft_id,
+          origin_id: payload.origin_id,
+          destination_id: payload.destination_id,
+          depart_at: payload.depart_at,
+          seats_available: payload.seats_available,
+          price: payload.price,
+          pricing_mode: payload.pricing_mode,
+          status: payload.status,
+          whole_aircraft: payload.whole_aircraft,
+          notes: payload.notes,
+        }),
+        requestId,
+        actorRole: "operator",
+      });
     } else {
       const { data, error: insertError } = await auth.supabase
         .from("empty_legs")
@@ -83,10 +117,34 @@ export async function PUT(request: Request) {
         .select("id")
         .single();
       if (insertError || !data) {
-        logError("supabase_write_failed", { table: "empty_legs", message: insertError?.message ?? "insert failed" });
+        logError("supabase_write_failed", {
+          table: "empty_legs",
+          message: insertError?.message ?? "insert failed",
+          request_id: requestId,
+        });
         return error(insertError?.message ?? "insert failed", 500);
       }
       ids.push(data.id);
+      await recordAudit(auth.supabase, {
+        action: "empty_leg.create",
+        entityType: "empty_leg",
+        entityId: data.id,
+        summary: "Created empty leg via operator API",
+        diff: scalarDiff(null, {
+          aircraft_id: payload.aircraft_id,
+          origin_id: payload.origin_id,
+          destination_id: payload.destination_id,
+          depart_at: payload.depart_at,
+          seats_available: payload.seats_available,
+          price: payload.price,
+          pricing_mode: payload.pricing_mode,
+          status: payload.status,
+          whole_aircraft: payload.whole_aircraft,
+          notes: payload.notes,
+        }),
+        requestId,
+        actorRole: "operator",
+      });
     }
   }
 
