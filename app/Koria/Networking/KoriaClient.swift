@@ -16,6 +16,7 @@ protocol KoriaClient: AnyObject {
     func updatePassport(_ profile: PassportProfile) async throws -> PassportProfile
     func requestAccess(email: String, name: String) async throws
     func currentUser() async throws -> User
+    func acceptTerms() async throws -> User
     func notifications(limit: Int, offset: Int) async throws -> NotificationPage
     func markNotificationRead(id: String) async throws -> InboxNotification
 }

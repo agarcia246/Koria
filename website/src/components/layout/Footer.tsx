@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { KoriaMark } from "@/components/ui/KoriaMark";
 import { CONTACT_HREF, INSTAGRAM_HREF, NAV_LINKS } from "@/lib/constants";
 
@@ -45,10 +46,14 @@ export function Footer() {
             <p className="label mb-5 text-champagne">Legal</p>
             <ul className="space-y-3 text-sm text-ivory/80">
               <li>
-                <a href="#privacy">Privacy</a>
+                <Link href="/privacy" className="transition-colors hover:text-ivory">
+                  Privacy
+                </Link>
               </li>
               <li>
-                <a href="#terms">Terms</a>
+                <Link href="/terms" className="transition-colors hover:text-ivory">
+                  Terms
+                </Link>
               </li>
             </ul>
           </div>

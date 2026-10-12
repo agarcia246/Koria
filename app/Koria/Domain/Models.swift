@@ -388,6 +388,8 @@ struct User: Identifiable, Hashable, Codable, Sendable {
     var name: String
     var email: String
     var accessStatus: AccessStatus
+    var termsVersionRequired: String
+    var termsAccepted: Bool
 }
 
 enum KoriaError: LocalizedError, Equatable {
@@ -397,6 +399,7 @@ enum KoriaError: LocalizedError, Equatable {
     case network(String)
     case notImplemented
     case accessPending
+    case termsRequired
 
     var errorDescription: String? {
         switch self {
@@ -406,6 +409,7 @@ enum KoriaError: LocalizedError, Equatable {
         case .network(let message): message
         case .notImplemented: "This service is not connected yet."
         case .accessPending: "Your early access request is still pending."
+        case .termsRequired: "Accept the current terms and privacy policy to request a trip."
         }
     }
 }

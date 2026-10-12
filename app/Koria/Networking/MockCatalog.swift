@@ -200,7 +200,14 @@ struct MockCatalog: Sendable {
             )
         ]
 
-        demoUser = User(id: "user-demo", name: "Alex Rivera", email: "alex@koria.travel", accessStatus: .approved)
+        demoUser = User(
+            id: "user-demo",
+            name: "Alex Rivera",
+            email: "alex@koria.travel",
+            accessStatus: .approved,
+            termsVersionRequired: LegalLinks.version,
+            termsAccepted: false
+        )
 
         demoPassport = PassportProfile(
             displayName: "Alex Rivera",

@@ -1,4 +1,5 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
+import { termsAreAccepted } from "@/lib/terms";
 import type { Json } from "@/lib/database.types";
 import { logError } from "@/lib/log";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
@@ -36,6 +37,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const auth = await requireBearerAuth(request, { requireApprovedCustomer: true });
   if (!isAuthContext(auth)) return auth;
+
+  if (!termsAreAccepted(auth.profile.terms_version)) {
+    return error("terms_required", 403);
+  }
 
   let body: Record<string, unknown>;
   try {
