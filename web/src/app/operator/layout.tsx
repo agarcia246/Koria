@@ -13,6 +13,7 @@ const operatorLinks = [
   { href: "/operator/empty-legs", label: "Empty legs" },
   { href: "/operator/requests", label: "Requests" },
   { href: "/operator/bookings", label: "Bookings" },
+  { href: "/operator/api-keys", label: "API keys" },
 ];
 
 export default async function OperatorLayout({ children }: { children: React.ReactNode }) {

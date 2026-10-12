@@ -620,6 +620,51 @@ export type Database = {
           },
         ]
       }
+      operator_api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          operator_id: string
+          revoked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          operator_id: string
+          revoked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          operator_id?: string
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operator_api_keys_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operator_members: {
         Row: {
           created_at: string
@@ -1452,6 +1497,7 @@ export type Database = {
         Returns: Database["public"]["Tables"]["trip_requests"]["Row"]
       }
       is_admin: { Args: never; Returns: boolean }
+      is_operator_admin: { Args: { p_operator_id: string }; Returns: boolean }
       operator_can_access_trip: { Args: { trip_id: string }; Returns: boolean }
       operator_ids: { Args: never; Returns: string[] }
       airports_within_nm: {

@@ -11,6 +11,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | airports | read | read | write | |
 | operators | read | update own | write | |
 | operator_members | none | read own membership | write | Customers do not see staff lists. |
+| operator_api_keys | none | admin member of that operator (`is_operator_admin`) | included | `0015`. Stores SHA-256 `key_hash` only. Select, insert, and update (revoke). No delete policy. The inbound API uses the service role after the hash lookup and still filters every write by that `operator_id`. Rate limiting is out of scope. |
 | aircraft_models | read | read | write | |
 | aircraft | read active | read/write own fleet | via member or admin policies | |
 | aircraft_photos | read | read/write own fleet | via member policies | |
