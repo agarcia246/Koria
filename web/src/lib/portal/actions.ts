@@ -9,6 +9,7 @@ import { createServiceClient } from "@/lib/supabase/admin";
 import { requireOperatorContext } from "@/lib/portal/operator";
 import { resolvePlatformFee } from "@/lib/fees";
 import { computeOperatorAmount } from "@/lib/pricing";
+import { computeTaxes, passengerLegs, type TaxRuleInput } from "@/lib/taxes";
 import { haversineNm } from "@/lib/geo";
 import { brokerDisclosureFields } from "@/lib/disclosures";
 import { sendEmail } from "@/lib/email";
@@ -341,6 +342,50 @@ async function carrierSnapshot(supabase: Awaited<ReturnType<typeof requireOperat
   };
 }
 
+async function taxesForQuote(
+  supabase: Awaited<ReturnType<typeof requireOperatorContext>>["supabase"],
+  args: {
+    originCountry: string;
+    destinationCountry: string;
+    originRegion: string | null;
+    destinationRegion: string | null;
+    returnAt: string | null;
+    passengers: number;
+    operatorAmount: number;
+    platformFee: number;
+    departAt: string;
+    returnPath: string;
+  },
+) {
+  const { data, error } = await supabase.from("tax_rules").select("*");
+  await assertWrite("tax_rules", error, args.returnPath);
+  const rules: TaxRuleInput[] = (data ?? []).map((rule) => ({
+    id: rule.id,
+    kind: rule.kind,
+    basis: rule.basis,
+    rate: rule.rate,
+    amount: rule.amount,
+    currency: rule.currency,
+    effective_from: rule.effective_from,
+    effective_to: rule.effective_to,
+    source_url: rule.source_url,
+  }));
+  return computeTaxes({
+    legs: passengerLegs({
+      originCountry: args.originCountry,
+      destinationCountry: args.destinationCountry,
+      originRegion: args.originRegion,
+      destinationRegion: args.destinationRegion,
+      returnAt: args.returnAt,
+    }),
+    passengers: args.passengers,
+    operatorAmount: args.operatorAmount,
+    platformFee: args.platformFee,
+    departAt: args.departAt,
+    rules,
+  });
+}
+
 export async function acceptPrice(tripId: string) {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) throw new Error("No operator");
@@ -407,7 +452,19 @@ export async function acceptPrice(tripId: string) {
     operatorAmount: priced.amount,
     operatorId: ctx.operatorId,
   });
-  const taxes = 0;
+  const pricedTaxes = await taxesForQuote(ctx.supabase, {
+    originCountry: origin.country,
+    destinationCountry: destination.country,
+    originRegion: origin.region,
+    destinationRegion: destination.region,
+    returnAt: trip.return_at,
+    passengers: trip.passengers,
+    operatorAmount: priced.amount,
+    platformFee: fee.platformFeeAmount,
+    departAt: trip.depart_at,
+    returnPath: `/operator/requests/${tripId}`,
+  });
+  const taxes = pricedTaxes.taxesAmount;
   const customerTotal = priced.amount + fee.platformFeeAmount + taxes;
   const snapshot = await carrierSnapshot(ctx.supabase, ctx.operatorId);
 
@@ -425,6 +482,7 @@ export async function acceptPrice(tripId: string) {
     status: "pending",
     pricing_mode: priced.mode,
     carrier_disclosure_snapshot: snapshot,
+    tax_rule_snapshot: pricedTaxes.ruleSnapshot,
   })
     .select("id")
     .single();
@@ -464,14 +522,32 @@ export async function sendQuote(tripId: string, formData: FormData) {
   if (!aircraftId) throw new Error("Aircraft required");
 
   const operatorAmount = Number(formData.get("operator_amount"));
-  const taxes = formData.get("taxes_amount") ? Number(formData.get("taxes_amount")) : 0;
   const parentQuoteId = String(formData.get("parent_quote_id") || "") || null;
   const isCounter = Boolean(parentQuoteId);
+
+  const [{ data: origin }, { data: destination }] = await Promise.all([
+    ctx.supabase.from("airports").select("country, region").eq("id", trip.origin_id).maybeSingle(),
+    ctx.supabase.from("airports").select("country, region").eq("id", trip.destination_id).maybeSingle(),
+  ]);
+  if (!origin || !destination) throw new Error("Missing airports");
 
   const fee = await resolvePlatformFee(ctx.supabase, {
     operatorAmount,
     operatorId: ctx.operatorId,
   });
+  const pricedTaxes = await taxesForQuote(ctx.supabase, {
+    originCountry: origin.country,
+    destinationCountry: destination.country,
+    originRegion: origin.region,
+    destinationRegion: destination.region,
+    returnAt: trip.return_at,
+    passengers: trip.passengers,
+    operatorAmount,
+    platformFee: fee.platformFeeAmount,
+    departAt: trip.depart_at,
+    returnPath: `/operator/requests/${tripId}`,
+  });
+  const taxes = pricedTaxes.taxesAmount;
   const customerTotal = operatorAmount + fee.platformFeeAmount + taxes;
   const snapshot = await carrierSnapshot(ctx.supabase, ctx.operatorId);
 
@@ -490,6 +566,7 @@ export async function sendQuote(tripId: string, formData: FormData) {
     parent_quote_id: parentQuoteId,
     pricing_mode: "quote_required",
     carrier_disclosure_snapshot: snapshot,
+    tax_rule_snapshot: pricedTaxes.ruleSnapshot,
   })
     .select("id")
     .single();

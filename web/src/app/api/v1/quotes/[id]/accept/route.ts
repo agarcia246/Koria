@@ -119,6 +119,7 @@ export async function POST(
     taxes_amount: quote.taxes_amount,
     customer_total: quote.customer_total,
     currency: quote.currency,
+    tax_rule_snapshot: quote.tax_rule_snapshot,
     operating_carrier_legal_name:
       (snapshot.legal_name as string) ?? operator?.legal_name ?? null,
     operating_carrier_dba: (snapshot.dba as string) ?? operator?.dba ?? null,

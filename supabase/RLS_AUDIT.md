@@ -26,6 +26,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | passenger_profiles | own | none | all | Passenger identity is not shared with the carrier through this table. |
 | preferences | own | none | all | |
 | platform_fee_rules | read | read | write | |
+| tax_rules | read | read | write | Reference rates for charter FET, the domestic segment fee, the international facilities tax, and the Alaska/Hawaii departure tax. `0016_tax_rules.sql`. Quotes and bookings store `tax_rule_snapshot`; existing rows stay null. |
 | passport_stamps | own | none | all | |
 | payments | read via own booking | read via own quote | all | Customers cannot insert. Recording a wire stays an admin action. |
 | payouts | none | read own operator | all | A payout is operator compensation, not a customer record. |

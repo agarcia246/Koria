@@ -431,6 +431,7 @@ export type Database = {
           quote_id: string
           status: Database["public"]["Enums"]["booking_status"]
           taxes_amount: number
+          tax_rule_snapshot: Json | null
           trip_request_id: string
           updated_at: string
         }
@@ -450,6 +451,7 @@ export type Database = {
           quote_id: string
           status?: Database["public"]["Enums"]["booking_status"]
           taxes_amount?: number
+          tax_rule_snapshot?: Json | null
           trip_request_id: string
           updated_at?: string
         }
@@ -469,6 +471,7 @@ export type Database = {
           quote_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
           taxes_amount?: number
+          tax_rule_snapshot?: Json | null
           trip_request_id?: string
           updated_at?: string
         }
@@ -1094,6 +1097,7 @@ export type Database = {
           pricing_mode: Database["public"]["Enums"]["pricing_mode"]
           status: Database["public"]["Enums"]["quote_status"]
           taxes_amount: number
+          tax_rule_snapshot: Json | null
           trip_request_id: string
           updated_at: string
           valid_until: string | null
@@ -1113,6 +1117,7 @@ export type Database = {
           pricing_mode?: Database["public"]["Enums"]["pricing_mode"]
           status?: Database["public"]["Enums"]["quote_status"]
           taxes_amount?: number
+          tax_rule_snapshot?: Json | null
           trip_request_id: string
           updated_at?: string
           valid_until?: string | null
@@ -1132,6 +1137,7 @@ export type Database = {
           pricing_mode?: Database["public"]["Enums"]["pricing_mode"]
           status?: Database["public"]["Enums"]["quote_status"]
           taxes_amount?: number
+          tax_rule_snapshot?: Json | null
           trip_request_id?: string
           updated_at?: string
           valid_until?: string | null
@@ -1250,6 +1256,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tax_rules: {
+        Row: {
+          amount: number | null
+          basis: string
+          created_at: string
+          currency: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          kind: string
+          rate: number | null
+          source_url: string
+        }
+        Insert: {
+          amount?: number | null
+          basis: string
+          created_at?: string
+          currency?: string
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          kind: string
+          rate?: number | null
+          source_url: string
+        }
+        Update: {
+          amount?: number | null
+          basis?: string
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          kind?: string
+          rate?: number | null
+          source_url?: string
+        }
+        Relationships: []
       }
       trip_documents: {
         Row: {

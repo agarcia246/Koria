@@ -1,5 +1,5 @@
 -- Reference seed. Safe for production.
--- Airports, aircraft models, and the global platform fee.
+-- Airports, aircraft models, the global platform fee, and IRS tax rules.
 --
 -- Demo operators, fleet, accounts, and trips live in seed.demo.sql.
 -- Local `supabase db reset` loads this file, then seed.demo.sql (config.toml).
@@ -11,6 +11,63 @@
 -- Operator-scoped overrides stay in seed.demo.sql because they point at demo operators.
 insert into public.platform_fee_rules (id, scope, bps, effective_from)
 values ('33333333-3333-3333-3333-333333330001', 'global', 1000, now())
+on conflict (id) do nothing;
+
+-- IRS air-transportation excise tax for calendar year 2026.
+-- Publication 510 (rev. December 2025) states the 7.5% percentage tax,
+-- the $5.30 domestic segment fee, the $23.40 international facilities tax,
+-- and the $11.70 Alaska/Hawaii departure tax.
+-- https://www.irs.gov/publications/p510
+-- rate is a fraction. Flat fees are currency amounts. effective_to is null
+-- so a departure after 2026 still uses these rows until counsel inserts
+-- the next year's amounts and closes these.
+insert into public.tax_rules (
+  id, kind, basis, rate, amount, currency, effective_from, effective_to, source_url
+) values
+  (
+    '44444444-4444-4444-4444-444444440001',
+    'domestic_fet',
+    'percent',
+    0.075,
+    null,
+    'USD',
+    '2026-01-01',
+    null,
+    'https://www.irs.gov/publications/p510'
+  ),
+  (
+    '44444444-4444-4444-4444-444444440002',
+    'domestic_segment',
+    'per_passenger_segment',
+    null,
+    5.30,
+    'USD',
+    '2026-01-01',
+    null,
+    'https://www.irs.gov/publications/p510'
+  ),
+  (
+    '44444444-4444-4444-4444-444444440003',
+    'international_facilities',
+    'per_passenger',
+    null,
+    23.40,
+    'USD',
+    '2026-01-01',
+    null,
+    'https://www.irs.gov/publications/p510'
+  ),
+  (
+    '44444444-4444-4444-4444-444444440004',
+    'alaska_hawaii_departure',
+    'per_passenger',
+    null,
+    11.70,
+    'USD',
+    '2026-01-01',
+    null,
+    'https://www.irs.gov/publications/p510'
+  )
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
