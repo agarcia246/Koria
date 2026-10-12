@@ -1,4 +1,5 @@
 import type { Tables } from "@/lib/database.types";
+import { outstandingBalance } from "@/lib/payments/deposit";
 import { BROKER_DISCLOSURE, CATEGORY_API } from "@/lib/disclosures";
 
 export type AirportRow = Tables<"airports">;
@@ -114,8 +115,9 @@ export function serializeListing(args: {
   };
 }
 
-export function serializeBooking(b: BookingRow | null) {
+export function serializeBooking(b: BookingRow | null, paid = 0) {
   if (!b) return null;
+  const customerTotal = Number(b.customer_total);
   return {
     id: b.id,
     trip_id: b.trip_request_id,
@@ -129,9 +131,13 @@ export function serializeBooking(b: BookingRow | null) {
     operator_amount: Number(b.operator_amount),
     platform_fee_amount: Number(b.platform_fee_amount),
     taxes_amount: Number(b.taxes_amount),
-    customer_total: Number(b.customer_total),
+    customer_total: customerTotal,
     currency: b.currency,
     fbo: b.fbo,
+    deposit_percent: Number(b.deposit_percent),
+    deposit_received_at: b.deposit_received_at,
+    deposit_received: Boolean(b.deposit_received_at),
+    outstanding_balance: outstandingBalance(customerTotal, paid),
   };
 }
 
@@ -155,6 +161,7 @@ export function serializeTrip(
   booking: BookingRow | null,
   documents: TripDocumentPayload[] = [],
   invoice: TripInvoicePayload | null = null,
+  paid = 0,
 ) {
   const prefs = (trip.prefs ?? {}) as Record<string, unknown>;
   const payload: Record<string, unknown> = {
@@ -174,7 +181,7 @@ export function serializeTrip(
     skis: Boolean(prefs.skis),
     baggage: Boolean(prefs.baggage),
     status: trip.status,
-    booking: serializeBooking(booking),
+    booking: serializeBooking(booking, paid),
     cancellation_reason: trip.cancellation_reason,
     cancelled_by: trip.cancelled_by,
     documents,

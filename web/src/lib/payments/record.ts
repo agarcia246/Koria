@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { logError } from "@/lib/log";
+import { depositIsCovered } from "@/lib/payments/deposit";
 import { confirmTripAfterPayment } from "@/lib/trips/confirm";
 
 type Client = SupabaseClient<Database>;
@@ -37,7 +38,7 @@ export async function recordWirePayment(
 
   const { data: booking, error: bookingError } = await client
     .from("bookings")
-    .select("id, customer_total, currency, status")
+    .select("id, customer_total, currency, status, deposit_percent, deposit_received_at")
     .eq("id", args.bookingId)
     .maybeSingle();
   if (bookingError || !booking) {
@@ -94,6 +95,27 @@ export async function recordWirePayment(
     if (invoiceError) {
       logError("supabase_write_failed", { table: "invoices", message: invoiceError.message });
       return { ok: false, table: "invoices", message: invoiceError.message };
+    }
+  }
+
+  const covered = depositIsCovered(customerTotal, Number(booking.deposit_percent), paid);
+  if (covered && !booking.deposit_received_at) {
+    const { error: depositError } = await client
+      .from("bookings")
+      .update({ deposit_received_at: new Date().toISOString() })
+      .eq("id", booking.id);
+    if (depositError) {
+      logError("supabase_write_failed", { table: "bookings", message: depositError.message });
+      return { ok: false, table: "bookings", message: depositError.message };
+    }
+  } else if (!covered && booking.deposit_received_at) {
+    const { error: depositError } = await client
+      .from("bookings")
+      .update({ deposit_received_at: null })
+      .eq("id", booking.id);
+    if (depositError) {
+      logError("supabase_write_failed", { table: "bookings", message: depositError.message });
+      return { ok: false, table: "bookings", message: depositError.message };
     }
   }
 

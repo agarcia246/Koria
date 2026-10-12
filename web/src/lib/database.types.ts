@@ -421,6 +421,8 @@ export type Database = {
           created_at: string
           currency: string
           customer_total: number
+          deposit_percent: number
+          deposit_received_at: string | null
           estimated_block_minutes: number | null
           fbo: string | null
           id: string
@@ -441,6 +443,8 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_total: number
+          deposit_percent?: number
+          deposit_received_at?: string | null
           estimated_block_minutes?: number | null
           fbo?: string | null
           id?: string
@@ -461,6 +465,8 @@ export type Database = {
           created_at?: string
           currency?: string
           customer_total?: number
+          deposit_percent?: number
+          deposit_received_at?: string | null
           estimated_block_minutes?: number | null
           fbo?: string | null
           id?: string

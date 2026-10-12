@@ -22,7 +22,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | trip_requests | own | read/update when the aircraft, a quote, or a fan-out row is theirs | included in customer policy | `operator_can_access_trip` includes `trip_request_operators`. |
 | trip_request_operators | none | read and update own rows | all | Customers have no policy. Inserts are service-role only via `create_trip_with_fanout`. |
 | quotes | own trip | own operator | included | |
-| bookings | own trip | own quote | update | |
+| bookings | own trip | own quote | update | `deposit_percent` defaults from config (50) and can be overridden per booking. `deposit_received_at` is set when paid payments cover that percent. The trip stays `awaiting_payment` until the full customer total is paid. |
 | passenger_profiles | own | none | all | Passenger identity is not shared with the carrier through this table. |
 | preferences | own | none | all | |
 | platform_fee_rules | read | read | write | |
