@@ -106,8 +106,11 @@ export async function runSearch(
   const modelIds = Array.from(new Set(aircraft.map((a) => a.model_id)));
   const operatorIds = Array.from(new Set(aircraft.map((a) => a.operator_id)));
   const aircraftIds = aircraft.map((a) => a.id);
+  const homeBaseIds = Array.from(
+    new Set(aircraft.map((a) => a.home_base_id).filter((id): id is string => Boolean(id))),
+  );
 
-  const [{ data: models }, { data: operators }, { data: photos }, { data: rules }, { data: blocks }, { data: emptyLegs }] =
+  const [{ data: models }, { data: operators }, { data: photos }, { data: rules }, { data: blocks }, { data: emptyLegs }, { data: homeBases }] =
     await Promise.all([
       client.from("aircraft_models").select("*").in("id", modelIds.length ? modelIds : ["00000000-0000-0000-0000-000000000000"]),
       client.from("operators").select("*").in("id", operatorIds.length ? operatorIds : ["00000000-0000-0000-0000-000000000000"]),
@@ -124,11 +127,16 @@ export async function runSearch(
         .eq("status", "published")
         .in("origin_id", originIds)
         .in("destination_id", destinationIds),
+      client
+        .from("airports")
+        .select("id, latitude, longitude")
+        .in("id", homeBaseIds.length ? homeBaseIds : ["00000000-0000-0000-0000-000000000000"]),
     ]);
 
   const modelMap = new Map((models ?? []).map((m) => [m.id, m]));
   const operatorMap = new Map((operators ?? []).map((o) => [o.id, o]));
   const ruleMap = new Map((rules ?? []).map((r) => [r.aircraft_id, r]));
+  const homeBaseMap = new Map((homeBases ?? []).map((airport) => [airport.id, airport]));
   const photosByAircraft = new Map<string, Tables<"aircraft_photos">[]>();
   for (const p of photos ?? []) {
     const list = photosByAircraft.get(p.aircraft_id) ?? [];
@@ -195,10 +203,16 @@ export async function runSearch(
       return diffDays <= flexibleDays;
     });
 
+    const homeBase = ac.home_base_id ? homeBaseMap.get(ac.home_base_id) : undefined;
+    const repositionNm = homeBase
+      ? haversineNm(homeBase.latitude, homeBase.longitude, origin.latitude, origin.longitude)
+      : 0;
     const priced = computeOperatorAmount({
       rule: ruleMap.get(ac.id),
-      distanceNm,
       cruiseSpeedKtas: model.cruise_speed_ktas,
+      repositionNm,
+      liveNm: distanceNm,
+      returnNm: body.return_date ? distanceNm : 0,
     });
 
     const listing = serializeListing({

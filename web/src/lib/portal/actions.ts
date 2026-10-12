@@ -255,10 +255,28 @@ export async function acceptPrice(tripId: string) {
     destination.latitude,
     destination.longitude,
   );
+  let repositionNm = 0;
+  if (aircraft.home_base_id && aircraft.home_base_id !== origin.id) {
+    const { data: homeBase } = await ctx.supabase
+      .from("airports")
+      .select("latitude, longitude")
+      .eq("id", aircraft.home_base_id)
+      .maybeSingle();
+    if (homeBase) {
+      repositionNm = haversineNm(
+        homeBase.latitude,
+        homeBase.longitude,
+        origin.latitude,
+        origin.longitude,
+      );
+    }
+  }
   const priced = computeOperatorAmount({
     rule,
-    distanceNm,
     cruiseSpeedKtas: model.cruise_speed_ktas,
+    repositionNm,
+    liveNm: distanceNm,
+    returnNm: trip.return_at ? distanceNm : 0,
   });
   if (priced.amount == null) throw new Error("No live/estimated price available");
 
