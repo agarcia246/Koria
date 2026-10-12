@@ -141,15 +141,23 @@ export type TripDocumentPayload = {
   url: string | null;
 };
 
+export type TripInvoicePayload = {
+  number: string;
+  amount_due: number;
+  due_date: string;
+  bank_details: unknown;
+};
+
 export function serializeTrip(
   trip: TripRow,
   origin: AirportRow,
   destination: AirportRow,
   booking: BookingRow | null,
   documents: TripDocumentPayload[] = [],
+  invoice: TripInvoicePayload | null = null,
 ) {
   const prefs = (trip.prefs ?? {}) as Record<string, unknown>;
-  return {
+  const payload: Record<string, unknown> = {
     id: trip.id,
     created_at: trip.created_at,
     origin: serializeAirport(origin),
@@ -171,6 +179,10 @@ export function serializeTrip(
     cancelled_by: trip.cancelled_by,
     documents,
   };
+  if (trip.status === "awaiting_payment" && invoice) {
+    payload.invoice = invoice;
+  }
+  return payload;
 }
 
 export function serializeQuote(q: QuoteRow, operatorName: string) {

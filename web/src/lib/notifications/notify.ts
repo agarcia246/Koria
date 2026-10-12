@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
-import { renderTemplate, sendEmail, type EmailTemplate, type EmailTemplateData } from "@/lib/email";
+import { renderTemplate, sendEmail, type EmailAttachment, type EmailTemplate, type EmailTemplateData } from "@/lib/email";
 import { logError, logInfo } from "@/lib/log";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { NotifyEvent, NotifyInput, NotifyPayloadMap, Recipient } from "@/lib/notifications/types";
@@ -64,6 +64,9 @@ async function dispatch(input: NotifyInput): Promise<void> {
       return;
     case "documents_uploaded":
       await notifyDocument(client, trip, input.documentTitle);
+      return;
+    case "invoice_issued":
+      await notifyInvoice(client, trip, input.invoiceId);
       return;
     default: {
       const exhaustive: never = input;
@@ -191,6 +194,54 @@ async function notifyDocument(client: Client, trip: TripContext, documentTitle: 
   );
 }
 
+async function notifyInvoice(client: Client, trip: TripContext, invoiceId: string) {
+  const { data: invoice, error } = await client
+    .from("invoices")
+    .select("number, amount_due, due_date, currency, pdf_path")
+    .eq("id", invoiceId)
+    .maybeSingle();
+  if (error || !invoice) {
+    logError("notification_failed", {
+      table: "invoices",
+      message: error?.message ?? "Invoice not found",
+    });
+    return;
+  }
+
+  let attachments: EmailAttachment[] | undefined;
+  if (invoice.pdf_path) {
+    const downloaded = await client.storage.from("invoices").download(invoice.pdf_path);
+    if (downloaded.error || !downloaded.data) {
+      logError("notification_failed", {
+        table: "invoices",
+        message: downloaded.error?.message ?? "Invoice PDF missing",
+      });
+    } else {
+      attachments = [
+        {
+          filename: `${invoice.number}.pdf`,
+          content: new Uint8Array(await downloaded.data.arrayBuffer()),
+        },
+      ];
+    }
+  }
+
+  await deliver(
+    client,
+    "invoice_issued",
+    trip.tripId,
+    trip.customer ? [trip.customer] : [],
+    "invoice_issued",
+    {
+      route: trip.route,
+      invoiceNumber: invoice.number,
+      amountDue: money(Number(invoice.amount_due), invoice.currency),
+      dueDate: invoice.due_date,
+    },
+    attachments,
+  );
+}
+
 async function deliver<T extends EmailTemplate>(
   client: Client,
   event: NotifyEvent,
@@ -198,6 +249,7 @@ async function deliver<T extends EmailTemplate>(
   recipients: Recipient[],
   template: T,
   data: EmailTemplateData[T],
+  attachments?: EmailAttachment[],
 ): Promise<void> {
   const people = dedupe(recipients);
   if (people.length === 0) return;
@@ -216,7 +268,7 @@ async function deliver<T extends EmailTemplate>(
       logInfo("email_skipped", { template, message: "profile has no email" });
       return;
     }
-    await sendEmail(template, person.email, data);
+    await sendEmail(template, person.email, data, attachments);
   });
 
   const [inserted] = await Promise.all([client.from("notifications").insert(rows), Promise.all(emails)]);

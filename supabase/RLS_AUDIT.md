@@ -29,6 +29,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | tax_rules | read | read | write | Reference rates for charter FET, the domestic segment fee, the international facilities tax, and the Alaska/Hawaii departure tax. `0016_tax_rules.sql`. Quotes and bookings store `tax_rule_snapshot`; existing rows stay null. |
 | passport_stamps | own | none | all | |
 | payments | read via own booking | read via own quote | all | Customers cannot insert. Recording a wire stays an admin action. |
+| invoices | read via own booking | none | all | `0017_invoices.sql`. One invoice per booking. Operators do not see wire instructions. |
 | payouts | none | read own operator | all | A payout is operator compensation, not a customer record. |
 | trip_documents | own trip | read/write trips they can access | included in the customer policy | |
 | trip_members | read roster on own trip; update own row | read roster on accessible trips | all on own policy | |
@@ -42,4 +43,4 @@ No `public` table is service-role-only.
 
 `job_runs` is the closest case: authenticated users cannot insert, and only an admin can select. The cron job writes through a security-definer function, which is the same path the service role would use. That keeps the schedule's history out of customer and operator clients without hiding it from an admin.
 
-`auth` and `storage` objects are outside this list. `storage.objects` for `aircraft-photos` is public-read with operator or admin write, from `0001_init.sql`. `storage.objects` for `trip-documents` is private. Operator members on the trip, the customer, and admins can read. Operator members and admins can write. Paths are `{trip_id}/{file}`.
+`auth` and `storage` objects are outside this list. `storage.objects` for `aircraft-photos` is public-read with operator or admin write, from `0001_init.sql`. `storage.objects` for `trip-documents` is private. Operator members on the trip, the customer, and admins can read. Operator members and admins can write. Paths are `{trip_id}/{file}`. `storage.objects` for `invoices` is private. The customer on the booking and admins can read. Admins can write. Paths are `{invoice_id}.pdf`. The API uploads with the service role.

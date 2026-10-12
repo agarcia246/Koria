@@ -117,6 +117,19 @@ export function renderTemplate<T extends EmailTemplate>(
         html: layout(paragraphs),
       };
     }
+    case "invoice_issued": {
+      const row = data as EmailTemplateData["invoice_issued"];
+      const paragraphs = [
+        `Invoice ${row.invoiceNumber} for ${row.route} is attached.`,
+        `Amount due ${row.amountDue}. Due ${row.dueDate}.`,
+        "Pay by wire using the account on the invoice. Use the invoice number as the wire reference.",
+      ];
+      return {
+        subject: `Invoice ${row.invoiceNumber}`,
+        text: textOf(paragraphs),
+        html: layout(paragraphs),
+      };
+    }
     case "operator_invite": {
       const row = data as EmailTemplateData["operator_invite"];
       const paragraphs = [

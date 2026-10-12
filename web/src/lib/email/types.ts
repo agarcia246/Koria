@@ -10,6 +10,7 @@ export const EMAIL_TEMPLATES = [
   "booking_confirmed",
   "trip_cancelled",
   "documents_uploaded",
+  "invoice_issued",
   "operator_invite",
   "operator_added",
   "access_approved",
@@ -56,6 +57,12 @@ export type EmailTemplateData = {
   documents_uploaded: {
     route: string;
     documentTitle: string;
+  };
+  invoice_issued: {
+    route: string;
+    invoiceNumber: string;
+    amountDue: string;
+    dueDate: string;
   };
   operator_invite: {
     operatorName: string;
