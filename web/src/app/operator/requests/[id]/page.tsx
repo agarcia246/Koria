@@ -107,6 +107,7 @@ export default async function RequestDetailPage({
           Fee preview on $10,000 operator amount: ${previewFee.platformFeeAmount.toFixed(2)} (
           {previewFee.source}
           {previewFee.bps != null ? `, ${previewFee.bps} bps` : ""})
+          . Taxes are computed from the IRS rules for this route and departure. The percentage base is the operator amount plus the platform fee.
         </p>
         <form action={doSend} className="mt-4 space-y-3">
           <label className="block text-xs uppercase tracking-wide text-warm">
@@ -131,16 +132,6 @@ export default async function RequestDetailPage({
               type="number"
               step="0.01"
               required
-              className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
-            />
-          </label>
-          <label className="block text-xs uppercase tracking-wide text-warm">
-            Taxes
-            <input
-              name="taxes_amount"
-              type="number"
-              step="0.01"
-              defaultValue={0}
               className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
             />
           </label>
