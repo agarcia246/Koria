@@ -1328,6 +1328,33 @@ export type Database = {
           },
         ]
       }
+      refund_policies: {
+        Row: {
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          hours_before_departure: number
+          id: string
+          refund_percent: number
+        }
+        Insert: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          hours_before_departure: number
+          id?: string
+          refund_percent: number
+        }
+        Update: {
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          hours_before_departure?: number
+          id?: string
+          refund_percent?: number
+        }
+        Relationships: []
+      }
       tax_rules: {
         Row: {
           amount: number | null

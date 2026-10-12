@@ -16,6 +16,7 @@ import { sendEmail } from "@/lib/email";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { sendOperatorInvite } from "@/lib/operators/invite";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
+import { recordCancellationRefund } from "@/lib/payments/refund";
 import { recordWirePayment, sumPaidPayments } from "@/lib/payments/record";
 import { depositIsCovered } from "@/lib/payments/deposit";
 import { nextStatusOnQuoteSent } from "@/lib/trips/state";
@@ -689,6 +690,7 @@ export async function cancelOperatorTrip(tripId: string, formData: FormData) {
     .eq("trip_request_id", tripId)
     .neq("status", "cancelled");
   await assertWrite("bookings", bookingError, `/operator/requests/${tripId}`);
+  await recordCancellationRefund(service, tripId);
 
   enqueueNotification("trip_cancelled", {
     tripId,
@@ -1035,4 +1037,34 @@ export async function adminMarkPayoutSent(payoutId: string, formData: FormData) 
   await assertWrite("payouts", error, "/admin/payouts");
   revalidatePath("/admin/payouts");
   revalidatePath("/operator/bookings");
+}
+
+export async function adminMarkRefundSent(paymentId: string, bookingId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const service = createServiceClient();
+  const { data: profile } = await service.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Admin only");
+
+  const returnPath = `/admin/bookings/${bookingId}`;
+  const sentAt = String(formData.get("sent_at") || "");
+  const reference = String(formData.get("reference") || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sentAt) || !reference) {
+    await assertWrite("payments", { message: "Date and reference are required" }, returnPath);
+  }
+
+  const { error } = await service
+    .from("payments")
+    .update({
+      status: "refund_sent",
+      paid_at: `${sentAt}T00:00:00.000Z`,
+      provider_ref: reference,
+    })
+    .eq("id", paymentId)
+    .eq("status", "refund_due");
+  await assertWrite("payments", error, returnPath);
+  revalidatePath(returnPath);
 }

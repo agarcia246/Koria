@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { adminRecordPayment, adminSetDepositPercent } from "@/lib/portal/actions";
+import { adminRecordPayment, adminSetDepositPercent, adminMarkRefundSent } from "@/lib/portal/actions";
 import { outstandingBalance } from "@/lib/payments/deposit";
 
 export default async function AdminBookingDetailPage({
@@ -84,14 +84,33 @@ export default async function AdminBookingDetailPage({
 
       {(payments ?? []).length > 0 ? (
         <ul className="mt-6 space-y-2 text-sm">
-          {(payments ?? []).map((payment) => (
-            <li key={payment.id} className="flex justify-between border-b border-silver/20 py-2">
-              <span>
-                {payment.status} · {payment.provider_ref}
-              </span>
-              <span className="tabular-nums">${Number(payment.amount ?? 0).toLocaleString()}</span>
-            </li>
-          ))}
+          {(payments ?? []).map((payment) => {
+            const markRefund = adminMarkRefundSent.bind(null, payment.id, booking.id);
+            return (
+              <li key={payment.id} className="border-b border-silver/20 py-2">
+                <div className="flex justify-between">
+                  <span>
+                    {payment.status} · {payment.provider_ref}
+                  </span>
+                  <span className="tabular-nums">${Number(payment.amount ?? 0).toLocaleString()}</span>
+                </div>
+                {payment.status === "refund_due" ? (
+                  <form action={markRefund} className="mt-2 flex flex-wrap items-center gap-2">
+                    <input name="sent_at" type="date" required className="border border-silver/50 bg-paper px-2 py-1" />
+                    <input
+                      name="reference"
+                      placeholder="Reference"
+                      required
+                      className="border border-silver/50 bg-paper px-2 py-1"
+                    />
+                    <button type="submit" className="border border-ink px-2 py-1 text-xs">
+                      Mark refund sent
+                    </button>
+                  </form>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 
