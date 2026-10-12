@@ -1,14 +1,18 @@
 import { updateAircraft, uploadAircraftPhoto } from "@/lib/portal/actions";
+import { AirportFind, airportsByIds, searchPortalAirports } from "@/lib/portal/airports";
 import { requireOperatorContext } from "@/lib/portal/operator";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
 export default async function EditAircraftPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { id } = await params;
+  const { q = "" } = await searchParams;
   const ctx = await requireOperatorContext();
   const { data: aircraft } = await ctx.supabase
     .from("aircraft")
@@ -17,15 +21,17 @@ export default async function EditAircraftPage({
     .maybeSingle();
   if (!aircraft) notFound();
 
-  const [{ data: models }, { data: airports }, { data: photos }] = await Promise.all([
+  const [{ data: models }, matches, currentBase, { data: photos }] = await Promise.all([
     ctx.supabase.from("aircraft_models").select("*").order("name"),
-    ctx.supabase.from("airports").select("id, icao, iata, city").order("city"),
+    searchPortalAirports(ctx.supabase, q),
+    airportsByIds(ctx.supabase, aircraft.home_base_id ? [aircraft.home_base_id] : []),
     ctx.supabase
       .from("aircraft_photos")
       .select("*")
       .eq("aircraft_id", id)
       .order("sort_order"),
   ]);
+  const airports = [...currentBase, ...matches.filter((airport) => airport.id !== aircraft.home_base_id)];
 
   const update = updateAircraft.bind(null, id);
   const upload = uploadAircraftPhoto.bind(null, id);
@@ -38,6 +44,7 @@ export default async function EditAircraftPage({
           Pricing →
         </Link>
       </div>
+      <AirportFind q={q} />
       <form action={update} className="mt-8 space-y-4">
         <label className="block text-xs uppercase tracking-wide text-warm">
           Tail

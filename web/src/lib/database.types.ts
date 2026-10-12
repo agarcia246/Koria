@@ -179,8 +179,10 @@ export type Database = {
           created_at: string
           ends_at: string
           id: string
+          import_batch_id: string | null
           kind: Database["public"]["Enums"]["availability_kind"]
           notes: string | null
+          source: Database["public"]["Enums"]["availability_source"]
           starts_at: string
           updated_at: string
         }
@@ -190,8 +192,10 @@ export type Database = {
           created_at?: string
           ends_at: string
           id?: string
+          import_batch_id?: string | null
           kind: Database["public"]["Enums"]["availability_kind"]
           notes?: string | null
+          source?: Database["public"]["Enums"]["availability_source"]
           starts_at: string
           updated_at?: string
         }
@@ -201,8 +205,10 @@ export type Database = {
           created_at?: string
           ends_at?: string
           id?: string
+          import_batch_id?: string | null
           kind?: Database["public"]["Enums"]["availability_kind"]
           notes?: string | null
+          source?: Database["public"]["Enums"]["availability_source"]
           starts_at?: string
           updated_at?: string
         }
@@ -1467,6 +1473,7 @@ export type Database = {
         | "heavy"
         | "ultra_long_range"
       availability_kind: "available" | "blocked"
+      availability_source: "manual" | "import" | "api"
       booking_status: "pending" | "confirmed" | "completed" | "cancelled"
       empty_leg_status: "published" | "withdrawn" | "booked"
       pricing_mode: "live" | "estimated" | "quote_required"

@@ -15,7 +15,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | aircraft | read active | read/write own fleet | via member or admin policies | |
 | aircraft_photos | read | read/write own fleet | via member policies | |
 | aircraft_pricing_rules | read | read/write own fleet | via member policies | |
-| aircraft_availability | read | read/write own fleet | via member policies | |
+| aircraft_availability | read | read/write own fleet | via member policies | `0014` adds `source` (`manual`, `import`, `api`, default `manual`) and `import_batch_id`. Re-upload deletes only `source = import` for that aircraft. |
 | searches | own | none | own policy includes admin | Search text stays private to the customer. |
 | empty_legs | read published | write own | via member policies | |
 | trip_requests | own | read/update when the aircraft, a quote, or a fan-out row is theirs | included in customer policy | `operator_can_access_trip` includes `trip_request_operators`. |

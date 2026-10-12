@@ -1,13 +1,18 @@
 import { createEmptyLeg, withdrawEmptyLeg } from "@/lib/portal/actions";
+import { AirportFind, airportsByIds, searchPortalAirports } from "@/lib/portal/airports";
 import { requireOperatorContext } from "@/lib/portal/operator";
 
-export default async function EmptyLegsPage() {
+export default async function EmptyLegsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) return <p>No operator</p>;
+  const { q = "" } = await searchParams;
 
-  const [{ data: fleet }, { data: airports }, { data: legs }] = await Promise.all([
+  const [{ data: fleet }, { data: legs }] = await Promise.all([
     ctx.supabase.from("aircraft").select("id, tail_number").eq("operator_id", ctx.operatorId),
-    ctx.supabase.from("airports").select("id, city, iata, icao").order("city"),
     ctx.supabase
       .from("empty_legs")
       .select("*")
@@ -15,11 +20,17 @@ export default async function EmptyLegsPage() {
       .order("depart_at", { ascending: false }),
   ]);
 
-  const airportMap = new Map((airports ?? []).map((a) => [a.id, a]));
+  const listedIds = (legs ?? []).flatMap((leg) => [leg.origin_id, leg.destination_id]);
+  const [airports, listed] = await Promise.all([
+    searchPortalAirports(ctx.supabase, q),
+    airportsByIds(ctx.supabase, listedIds),
+  ]);
+  const airportMap = new Map([...listed, ...airports].map((airport) => [airport.id, airport]));
 
   return (
     <div>
       <h1 className="font-display text-3xl">Empty legs</h1>
+      <AirportFind q={q} />
       <form action={createEmptyLeg} className="mt-8 grid grid-cols-2 gap-4 max-w-2xl">
         <label className="block text-xs uppercase tracking-wide text-warm">
           Aircraft

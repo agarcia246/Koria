@@ -16,6 +16,7 @@ import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
 import { confirmTripAfterPayment } from "@/lib/trips/confirm";
 import { nextStatusOnQuoteSent } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
+import { parseAvailabilityFile } from "@/lib/availability/parse";
 import { assertWrite } from "@/lib/portal/write";
 
 export async function signOut() {
@@ -149,8 +150,69 @@ export async function createAvailability(formData: FormData) {
     kind: String(formData.get("kind") || "blocked") as AvailabilityKind,
     based_at_id: String(formData.get("based_at_id") || "") || null,
     notes: String(formData.get("notes") || "") || null,
+    source: "manual",
   });
   await assertWrite("aircraft_availability", error, "/operator/availability");
+  revalidatePath("/operator/availability");
+}
+
+/**
+ * iCal VEVENTs are blocked windows. CSV rows use the kind column (default blocked).
+ * Replaces this aircraft's source = import rows only. Manual and api rows stay.
+ */
+export async function importAvailability(formData: FormData) {
+  const ctx = await requireOperatorContext();
+  if (!ctx.operatorId) throw new Error("No operator");
+  const aircraftId = String(formData.get("aircraft_id") || "");
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    await assertWrite("aircraft_availability", { message: "Choose an iCal or CSV file." }, "/operator/availability");
+    return;
+  }
+  if (file.size > 1_000_000) {
+    await assertWrite("aircraft_availability", { message: "File must be 1 MB or smaller." }, "/operator/availability");
+    return;
+  }
+
+  const { data: aircraft } = await ctx.supabase
+    .from("aircraft")
+    .select("id")
+    .eq("id", aircraftId)
+    .eq("operator_id", ctx.operatorId)
+    .maybeSingle();
+  if (!aircraft) {
+    await assertWrite("aircraft_availability", { message: "Aircraft not on this operator." }, "/operator/availability");
+    return;
+  }
+
+  const parsed = parseAvailabilityFile(file.name, await file.text());
+  if (parsed.errors.length) {
+    await assertWrite("aircraft_availability", { message: parsed.errors[0] }, "/operator/availability");
+    return;
+  }
+
+  const batchId = crypto.randomUUID();
+  const { error: deleteError } = await ctx.supabase
+    .from("aircraft_availability")
+    .delete()
+    .eq("aircraft_id", aircraftId)
+    .eq("source", "import");
+  await assertWrite("aircraft_availability", deleteError, "/operator/availability");
+
+  if (parsed.rows.length) {
+    const { error } = await ctx.supabase.from("aircraft_availability").insert(
+      parsed.rows.map((row) => ({
+        aircraft_id: aircraftId,
+        starts_at: row.starts_at,
+        ends_at: row.ends_at,
+        kind: row.kind,
+        notes: row.notes,
+        source: "import" as const,
+        import_batch_id: batchId,
+      })),
+    );
+    await assertWrite("aircraft_availability", error, "/operator/availability");
+  }
   revalidatePath("/operator/availability");
 }
 
