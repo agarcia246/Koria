@@ -11,6 +11,8 @@ const transitions: Record<TripStatus, TripStatus[]> = {
   declined: [],
 };
 
+export const TRIP_STATUSES = Object.keys(transitions) as TripStatus[];
+
 export function canTransition(from: TripStatus, to: TripStatus): boolean {
   return transitions[from]?.includes(to) ?? false;
 }

@@ -18,10 +18,12 @@ import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { sendOperatorInvite } from "@/lib/operators/invite";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
 import { recordCancellationRefund } from "@/lib/payments/refund";
-import { recordWirePayment, sumPaidPayments } from "@/lib/payments/record";
+import { money, recordWirePayment, sumPaidPayments } from "@/lib/payments/record";
 import { depositIsCovered } from "@/lib/payments/deposit";
-import { nextStatusOnQuoteSent } from "@/lib/trips/state";
-import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
+import { TRIP_STATUSES, canTransition, nextStatusOnQuoteSent } from "@/lib/trips/state";
+import { confirmTripAfterPayment } from "@/lib/trips/confirm";
+import { createInvoiceForBooking } from "@/lib/invoices/create";
+import type { PricingMode, AvailabilityKind, TripStatus } from "@/lib/database.types";
 import { parseAvailabilityFile } from "@/lib/availability/parse";
 import { assertWrite } from "@/lib/portal/write";
 import { recordAudit, scalarDiff } from "@/lib/audit";
@@ -1376,4 +1378,344 @@ export async function adminMarkRefundSent(paymentId: string, bookingId: string, 
     });
   }
   revalidatePath(returnPath);
+}
+
+type ServiceClient = ReturnType<typeof createServiceClient>;
+
+async function paymentsCoverInvoice(service: ServiceClient, bookingId: string, customerTotal: number) {
+  const { data: invoice, error: invoiceError } = await service
+    .from("invoices")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .maybeSingle();
+  if (invoiceError) return { ok: false as const, message: invoiceError.message };
+  const { data: payments, error: paymentsError } = await service
+    .from("payments")
+    .select("amount, status")
+    .eq("booking_id", bookingId);
+  if (paymentsError) return { ok: false as const, message: paymentsError.message };
+  const paid = sumPaidPayments(payments ?? []);
+  return { ok: true as const, covered: Boolean(invoice) && paid + 0.001 >= money(Number(customerTotal)) };
+}
+
+/** Same booking and payout result as the rollover job, for an admin who already decided the trip is done. */
+async function finishTrip(service: ServiceClient, tripId: string, returnPath: string) {
+  const { error: tripError } = await service.from("trip_requests").update({ status: "completed" }).eq("id", tripId);
+  await assertWrite("trip_requests", tripError, returnPath);
+
+  const { data: booking, error: bookingError } = await service
+    .from("bookings")
+    .select("id, status, operator_amount, payout_adjustment, currency, quote_id")
+    .eq("trip_request_id", tripId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  await assertWrite("bookings", bookingError, returnPath);
+  if (!booking || booking.status === "cancelled") return;
+  if (booking.status !== "completed") {
+    const { error: bookingUpdateError } = await service
+      .from("bookings")
+      .update({ status: "completed" })
+      .eq("id", booking.id);
+    await assertWrite("bookings", bookingUpdateError, returnPath);
+  }
+
+  const { data: existingPayout, error: payoutReadError } = await service
+    .from("payouts")
+    .select("id")
+    .eq("booking_id", booking.id)
+    .limit(1)
+    .maybeSingle();
+  await assertWrite("payouts", payoutReadError, returnPath);
+  if (existingPayout || !booking.quote_id) return;
+
+  const { data: quote, error: quoteError } = await service
+    .from("quotes")
+    .select("operator_id")
+    .eq("id", booking.quote_id)
+    .maybeSingle();
+  await assertWrite("quotes", quoteError, returnPath);
+  if (!quote) return;
+
+  const { error: payoutError } = await service.from("payouts").insert({
+    operator_id: quote.operator_id,
+    booking_id: booking.id,
+    amount: money(Number(booking.operator_amount) - Number(booking.payout_adjustment)),
+    currency: booking.currency,
+    status: "unpaid",
+  });
+  await assertWrite("payouts", payoutError, returnPath);
+}
+
+export async function adminOverrideTripStatus(tripId: string, formData: FormData) {
+  const returnPath = `/admin/trips/${tripId}`;
+  const { userId } = await requirePlatformAdmin(returnPath);
+  const service = createServiceClient();
+  const next = String(formData.get("status") || "");
+  const note = String(formData.get("note") || "").trim();
+  if (!note) {
+    await assertWrite("trip_requests", { message: "A note is required" }, returnPath);
+  }
+  if (!(TRIP_STATUSES as string[]).includes(next)) {
+    await assertWrite("trip_requests", { message: "Unknown status" }, returnPath);
+    return;
+  }
+  const status = next as TripStatus;
+
+  const { data: trip, error: tripError } = await service
+    .from("trip_requests")
+    .select("id, status")
+    .eq("id", tripId)
+    .maybeSingle();
+  await assertWrite("trip_requests", tripError, returnPath);
+  if (!trip) throw new Error("Trip not found");
+  if (!canTransition(trip.status, status)) {
+    await assertWrite("trip_requests", { message: `Cannot move ${trip.status} to ${status}` }, returnPath);
+    return;
+  }
+
+  if (status === "confirmed") {
+    const { data: booking, error: bookingError } = await service
+      .from("bookings")
+      .select("id, customer_total, status")
+      .eq("trip_request_id", tripId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    await assertWrite("bookings", bookingError, returnPath);
+    const coverage = booking ? await paymentsCoverInvoice(service, booking.id, Number(booking.customer_total)) : null;
+    if (coverage && !coverage.ok) {
+      await assertWrite("invoices", { message: coverage.message }, returnPath);
+      return;
+    }
+    if (booking && booking.status !== "cancelled" && coverage?.ok && coverage.covered) {
+      const confirmed = await confirmTripAfterPayment(service, booking.id);
+      if (!confirmed.ok) {
+        await assertWrite(confirmed.table, confirmed.error, returnPath);
+        return;
+      }
+      await recordAudit(service, {
+        action: "trip.status_override",
+        entityType: "trip_request",
+        entityId: tripId,
+        summary: `Override ${trip.status} → confirmed. ${note}`,
+        diff: scalarDiff({ status: trip.status }, { status: "confirmed" }),
+      });
+    } else {
+      const { error } = await service.from("trip_requests").update({ status: "confirmed" }).eq("id", tripId);
+      await assertWrite("trip_requests", error, returnPath);
+      await recordAudit(service, {
+        action: "trip.status_override",
+        entityType: "trip_request",
+        entityId: tripId,
+        summary: `finance_override: payments do not cover the invoice. Status set to confirmed without booking_confirmed. ${note}`,
+        diff: scalarDiff({ status: trip.status }, { status: "confirmed" }),
+      });
+    }
+    revalidatePath(returnPath);
+    revalidatePath("/admin/trips");
+    revalidatePath("/admin/bookings");
+    return;
+  }
+
+  if (status === "completed") {
+    await finishTrip(service, tripId, returnPath);
+    await recordAudit(service, {
+      action: "trip.status_override",
+      entityType: "trip_request",
+      entityId: tripId,
+      summary: `Override ${trip.status} → completed. ${note}`,
+      diff: scalarDiff({ status: trip.status }, { status: "completed" }),
+    });
+    revalidatePath(returnPath);
+    revalidatePath("/admin/trips");
+    return;
+  }
+
+  if (status === "cancelled") {
+    const { error } = await service
+      .from("trip_requests")
+      .update({
+        status: "cancelled",
+        cancellation_reason: note,
+        cancelled_by: userId,
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("id", tripId);
+    await assertWrite("trip_requests", error, returnPath);
+    const { error: bookingError } = await service
+      .from("bookings")
+      .update({ status: "cancelled" })
+      .eq("trip_request_id", tripId)
+      .neq("status", "cancelled");
+    await assertWrite("bookings", bookingError, returnPath);
+    await recordCancellationRefund(service, tripId);
+  } else {
+    const { error } = await service.from("trip_requests").update({ status }).eq("id", tripId);
+    await assertWrite("trip_requests", error, returnPath);
+  }
+
+  await recordAudit(service, {
+    action: "trip.status_override",
+    entityType: "trip_request",
+    entityId: tripId,
+    summary: `Override ${trip.status} → ${status}. ${note}`,
+    diff: scalarDiff({ status: trip.status }, { status }),
+  });
+  revalidatePath(returnPath);
+  revalidatePath("/admin/trips");
+  revalidatePath("/admin/bookings");
+}
+
+export async function adminReassignTripAircraft(tripId: string, formData: FormData) {
+  const returnPath = `/admin/trips/${tripId}`;
+  await requirePlatformAdmin(returnPath);
+  const service = createServiceClient();
+  const aircraftId = String(formData.get("aircraft_id") || "");
+  if (!aircraftId) {
+    await assertWrite("aircraft", { message: "Choose an aircraft" }, returnPath);
+    return;
+  }
+
+  const [{ data: trip, error: tripError }, { data: fanout }, { data: quotes }] = await Promise.all([
+    service.from("trip_requests").select("id, aircraft_id").eq("id", tripId).maybeSingle(),
+    service.from("trip_request_operators").select("operator_id").eq("trip_id", tripId),
+    service.from("quotes").select("operator_id").eq("trip_request_id", tripId),
+  ]);
+  await assertWrite("trip_requests", tripError, returnPath);
+  if (!trip) throw new Error("Trip not found");
+
+  const operatorIds = new Set<string>([
+    ...(fanout ?? []).map((row) => row.operator_id),
+    ...(quotes ?? []).map((row) => row.operator_id),
+  ]);
+  if (trip.aircraft_id) {
+    const { data: current } = await service.from("aircraft").select("operator_id").eq("id", trip.aircraft_id).maybeSingle();
+    if (current) operatorIds.add(current.operator_id);
+  }
+
+  const { data: aircraft, error: aircraftError } = await service
+    .from("aircraft")
+    .select("id, operator_id, tail_number")
+    .eq("id", aircraftId)
+    .maybeSingle();
+  await assertWrite("aircraft", aircraftError, returnPath);
+  if (!aircraft || !operatorIds.has(aircraft.operator_id)) {
+    await assertWrite(
+      "aircraft",
+      { message: "Aircraft must belong to an operator already on this trip" },
+      returnPath,
+    );
+    return;
+  }
+  if (trip.aircraft_id === aircraft.id) {
+    revalidatePath(returnPath);
+    return;
+  }
+
+  const { error } = await service.from("trip_requests").update({ aircraft_id: aircraft.id }).eq("id", tripId);
+  await assertWrite("trip_requests", error, returnPath);
+  await recordAudit(service, {
+    action: "trip.reassign_aircraft",
+    entityType: "trip_request",
+    entityId: tripId,
+    summary: `Reassigned aircraft to ${aircraft.tail_number}. Amounts unchanged.`,
+    diff: scalarDiff({ aircraft_id: trip.aircraft_id }, { aircraft_id: aircraft.id }),
+  });
+  revalidatePath(returnPath);
+}
+
+export async function adminCreateTripInvoice(tripId: string) {
+  const returnPath = `/admin/trips/${tripId}`;
+  await requirePlatformAdmin(returnPath);
+  const service = createServiceClient();
+  const { data: trip, error: tripError } = await service
+    .from("trip_requests")
+    .select("id, status")
+    .eq("id", tripId)
+    .maybeSingle();
+  await assertWrite("trip_requests", tripError, returnPath);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status !== "awaiting_payment") {
+    await assertWrite("invoices", { message: "Create an invoice only while the trip is awaiting payment" }, returnPath);
+    return;
+  }
+
+  const { data: booking, error: bookingError } = await service
+    .from("bookings")
+    .select("id")
+    .eq("trip_request_id", tripId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  await assertWrite("bookings", bookingError, returnPath);
+  if (!booking) {
+    await assertWrite("invoices", { message: "This trip has no booking" }, returnPath);
+    return;
+  }
+
+  const created = await createInvoiceForBooking(service, booking.id);
+  if (!created.ok) {
+    await assertWrite("invoices", { message: created.message }, returnPath);
+    return;
+  }
+  await recordAudit(service, {
+    action: "invoice.create",
+    entityType: "trip_request",
+    entityId: tripId,
+    summary: `Created invoice ${created.number}`,
+    diff: scalarDiff(null, { invoice_id: created.invoiceId, number: created.number, status: "issued" }),
+  });
+  revalidatePath(returnPath);
+  revalidatePath(`/admin/bookings/${booking.id}`);
+}
+
+export async function adminMarkTripCompleted(tripId: string) {
+  const returnPath = `/admin/trips/${tripId}`;
+  await requirePlatformAdmin(returnPath);
+  const service = createServiceClient();
+  const { data: trip, error: tripError } = await service
+    .from("trip_requests")
+    .select("id, status, return_at")
+    .eq("id", tripId)
+    .maybeSingle();
+  await assertWrite("trip_requests", tripError, returnPath);
+  if (!trip) throw new Error("Trip not found");
+  if (trip.status !== "confirmed" && trip.status !== "upcoming") {
+    await assertWrite("trip_requests", { message: "Only a confirmed or upcoming trip can be marked completed" }, returnPath);
+    return;
+  }
+  if (trip.return_at) {
+    await assertWrite("trip_requests", { message: "This trip has a return time. Rollover can complete it." }, returnPath);
+    return;
+  }
+
+  const { data: booking, error: bookingError } = await service
+    .from("bookings")
+    .select("estimated_block_minutes")
+    .eq("trip_request_id", tripId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  await assertWrite("bookings", bookingError, returnPath);
+  if (booking?.estimated_block_minutes != null) {
+    await assertWrite(
+      "trip_requests",
+      { message: "This trip has an estimated block time. Rollover can complete it." },
+      returnPath,
+    );
+    return;
+  }
+
+  await finishTrip(service, tripId, returnPath);
+  await recordAudit(service, {
+    action: "trip.mark_completed",
+    entityType: "trip_request",
+    entityId: tripId,
+    summary: "Marked completed. Rollover cannot compute arrival without return_at or estimated_block_minutes.",
+    diff: scalarDiff({ status: trip.status }, { status: "completed" }),
+  });
+  revalidatePath(returnPath);
+  revalidatePath("/admin/trips");
+  revalidatePath("/admin/bookings");
 }

@@ -10,6 +10,7 @@ const adminLinks = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/access", label: "Access" },
   { href: "/admin/operators", label: "Operators" },
+  { href: "/admin/trips", label: "Trips" },
   { href: "/admin/bookings", label: "Bookings" },
   { href: "/admin/payouts", label: "Payouts" },
   { href: "/admin/finance", label: "Finance" },
