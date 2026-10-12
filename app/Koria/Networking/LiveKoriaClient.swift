@@ -73,6 +73,11 @@ final class LiveKoriaClient: KoriaClient {
         try await get(path: "/api/v1/me")
     }
 
+    func acceptTerms() async throws -> User {
+        let _: TermsAcceptanceDTO = try await post(path: "/api/v1/me/accept-terms", body: EmptyJSON())
+        return try await currentUser()
+    }
+
     func notifications(limit: Int, offset: Int) async throws -> NotificationPage {
         try await get(
             path: "/api/v1/me/notifications",
@@ -137,6 +142,10 @@ final class LiveKoriaClient: KoriaClient {
         case 404:
             throw KoriaError.notFound
         default:
+            if let payload = try? JSONDecoder().decode(APIErrorBody.self, from: data),
+               payload.error == "terms_required" {
+                throw KoriaError.termsRequired
+            }
             if let payload = try? JSONDecoder().decode(APIErrorBody.self, from: data),
                !payload.error.isEmpty {
                 throw KoriaError.network(payload.error)
@@ -214,4 +223,9 @@ private enum KoriaJSONDate {
 
 private struct APIErrorBody: Decodable {
     var error: String
+}
+
+private struct TermsAcceptanceDTO: Decodable {
+    var termsVersionRequired: String
+    var termsAccepted: Bool
 }

@@ -6,7 +6,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 
 | Table | Customer | Operator member | Admin | Notes |
 | --- | --- | --- | --- | --- |
-| profiles | own row | own row | all | |
+| profiles | own row | own row | all | `0024_terms_acceptance.sql` adds `terms_accepted_at` and `terms_version`. A customer can update their own row, including those columns. `POST /api/v1/me/accept-terms` writes the current version with the service role. |
 | access_requests | own | none | update | Operators do not review access. |
 | airports | read | read | write | |
 | operators | read | update own | write | `0022_operator_verification.sql` adds `verified_at`, `verified_by`, `certificate_reviewed_at`, `certificate_review_notes`, and `insurance_certificate_path`. A before-update trigger rejects changes to those columns unless the caller is an admin or the service role. Operator members can still update the rest of the row and use the portal while unverified. `0023_operator_agreement.sql` adds `agreement_version`, `agreement_accepted_at`, and `agreement_accepted_by`. A before-update trigger lets an operator admin, a platform admin, or the service role change those columns. A member cannot accept the agreement. |

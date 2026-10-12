@@ -18,7 +18,9 @@ final class DemoAuthService: AuthServicing {
             id: "user-demo",
             name: "Alex Rivera",
             email: email.isEmpty ? "alex@koria.travel" : email,
-            accessStatus: .approved
+            accessStatus: .approved,
+            termsVersionRequired: LegalLinks.version,
+            termsAccepted: false
         )
         return (user, "demo-token")
     }
@@ -63,7 +65,9 @@ final class SupabaseAuthService: AuthServicing {
             id: session.user.id.uuidString,
             name: metaName,
             email: session.user.email ?? email,
-            accessStatus: .requested
+            accessStatus: .requested,
+            termsVersionRequired: LegalLinks.version,
+            termsAccepted: false
         )
         return (user, session.accessToken)
     }

@@ -4,6 +4,7 @@ import Foundation
 final class MockKoriaClient: KoriaClient {
     private let catalog: MockCatalog
     private let store: AppStore
+    private var acceptedCurrentTerms = false
 
     init(catalog: MockCatalog = .shared, store: AppStore) {
         self.catalog = catalog
@@ -205,7 +206,16 @@ final class MockKoriaClient: KoriaClient {
 
     func currentUser() async throws -> User {
         try await pause(100)
-        return catalog.demoUser
+        var user = catalog.demoUser
+        user.termsAccepted = acceptedCurrentTerms
+        user.termsVersionRequired = LegalLinks.version
+        return user
+    }
+
+    func acceptTerms() async throws -> User {
+        try await pause(200)
+        acceptedCurrentTerms = true
+        return try await currentUser()
     }
 
     func notifications(limit: Int, offset: Int) async throws -> NotificationPage {

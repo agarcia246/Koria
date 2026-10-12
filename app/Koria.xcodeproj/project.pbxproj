@@ -26,6 +26,7 @@
 		81F118B9A59A395D9F5B0DD8 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D680544913CA64234AFC31A /* MainTabView.swift */; };
 		9FBCBFBDAE0AED1288C9908C /* MockKoriaClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5294018DD044E6FC84A4D6 /* MockKoriaClient.swift */; };
 		A645454CFD5EF88D35876D1A /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03CE4E03C01662C77705C77A /* Models.swift */; };
+		8B2D0F55C3E19A7426F5B1D3 /* LegalLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1C9E44B2D08F6315E4A0C2 /* LegalLinks.swift */; };
 		B7520982606EA330AF14F3EB /* TripsInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F750F3602DC54A30AE3100D /* TripsInboxView.swift */; };
 		C8A41E07D93B52F6104E8A77 /* NotificationsInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D0E7B19A6C3582F91E04B60 /* NotificationsInboxView.swift */; };
 		BAE30CD1BF51304E01573A9C /* SearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B99C6095273A82023B268BF /* SearchViewModel.swift */; };
@@ -42,6 +43,7 @@
 
 /* Begin PBXFileReference section */
 		03CE4E03C01662C77705C77A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		7A1C9E44B2D08F6315E4A0C2 /* LegalLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegalLinks.swift; sourceTree = "<group>"; };
 		0B3D56B5049F1DC50D6ABE57 /* Koria.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Koria.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C708DE50641ADAD7C3C775E /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		1ED79D0A9824546ACCAF5DAF /* TripRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripRequestView.swift; sourceTree = "<group>"; };
@@ -107,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				03CE4E03C01662C77705C77A /* Models.swift */,
+				7A1C9E44B2D08F6315E4A0C2 /* LegalLinks.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -373,6 +376,7 @@
 				29F39EEBAAF5FE5DCCC5C064 /* MockCatalog.swift in Sources */,
 				9FBCBFBDAE0AED1288C9908C /* MockKoriaClient.swift in Sources */,
 				A645454CFD5EF88D35876D1A /* Models.swift in Sources */,
+				8B2D0F55C3E19A7426F5B1D3 /* LegalLinks.swift in Sources */,
 				3743B70EAEB27E6AF18C92D5 /* PassportView.swift in Sources */,
 				10E4FA03B9B96D2A84E1EAF7 /* RootView.swift in Sources */,
 				49C634AF117A99B01497155D /* SearchHomeView.swift in Sources */,

@@ -14,6 +14,9 @@ struct TripRequestView: View {
     @State private var notes = ""
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+    @State private var terms: User?
+    @State private var showTerms = false
+    @State private var isAcceptingTerms = false
 
     var body: some View {
         ScrollView {
@@ -52,7 +55,11 @@ struct TripRequestView: View {
                         .foregroundStyle(koria.muted)
                 }
 
-                KoriaButton(title: "Request this trip", isLoading: isSubmitting, isEnabled: summary != nil) {
+                KoriaButton(
+                    title: "Request this trip",
+                    isLoading: isSubmitting,
+                    isEnabled: summary != nil && terms?.termsAccepted == true
+                ) {
                     Task { await submit() }
                 }
             }
@@ -61,6 +68,16 @@ struct TripRequestView: View {
         }
         .koriaScreenBackground()
         .navigationBarTitleDisplayMode(.inline)
+        .task { await loadTerms() }
+        .sheet(isPresented: $showTerms) {
+            TermsAcceptanceSheet(
+                version: terms?.termsVersionRequired ?? LegalLinks.version,
+                isAccepting: isAcceptingTerms,
+                onAccept: { Task { await acceptTerms() } }
+            )
+            .environment(\.koria, koria)
+            .interactiveDismissDisabled()
+        }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Request")
@@ -120,6 +137,28 @@ struct TripRequestView: View {
         }
     }
 
+    private func loadTerms() async {
+        do {
+            let user = try await dependencies.client.currentUser()
+            terms = user
+            showTerms = !user.termsAccepted
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func acceptTerms() async {
+        isAcceptingTerms = true
+        defer { isAcceptingTerms = false }
+        do {
+            let user = try await dependencies.client.acceptTerms()
+            terms = user
+            showTerms = !user.termsAccepted
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func submit() async {
         guard let summary else { return }
         isSubmitting = true
@@ -144,8 +183,43 @@ struct TripRequestView: View {
             search.path = NavigationPath()
             session.selectedTab = .trips
         } catch {
+            if error as? KoriaError == .termsRequired {
+                showTerms = true
+            }
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct TermsAcceptanceSheet: View {
+    @Environment(\.koria) private var koria
+    var version: String
+    var isAccepting: Bool
+    var onAccept: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: KoriaSpace.lg) {
+                Text("Terms and privacy")
+                    .font(KoriaFont.display(36))
+                    .foregroundStyle(koria.foreground)
+                Text("Version \(version)")
+                    .font(KoriaFont.sans(14))
+                    .foregroundStyle(koria.muted)
+                Text("Accept the current terms and privacy policy before requesting a trip. A new version asks again.")
+                    .font(KoriaFont.sans(16))
+                    .foregroundStyle(koria.foreground)
+                Link("Terms of Service", destination: LegalLinks.terms)
+                    .font(KoriaFont.sans(16))
+                Link("Privacy Policy", destination: LegalLinks.privacy)
+                    .font(KoriaFont.sans(16))
+                KoriaButton(title: "Accept", isLoading: isAccepting) {
+                    onAccept()
+                }
+            }
+            .padding(KoriaSpace.lg)
+        }
+        .koriaScreenBackground()
     }
 }
 
