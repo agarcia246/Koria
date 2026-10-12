@@ -858,6 +858,7 @@ export type Database = {
           provider: string | null
           provider_ref: string | null
           status: string | null
+          paid_at: string | null
           updated_at: string
         }
         Insert: {
@@ -869,6 +870,7 @@ export type Database = {
           provider?: string | null
           provider_ref?: string | null
           status?: string | null
+          paid_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -880,6 +882,7 @@ export type Database = {
           provider?: string | null
           provider_ref?: string | null
           status?: string | null
+          paid_at?: string | null
           updated_at?: string
         }
         Relationships: [
