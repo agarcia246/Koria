@@ -150,9 +150,10 @@ async function authenticatedRequest(request: Request) {
 }
 
 /**
- * The site has no service-role key. This route creates or reuses the auth
- * user, then writes access_requests with the service role, so an admin
- * approval can set that profile's access. A filled honeypot is discarded.
+ * The site has no service-role key. This route writes access_requests with
+ * the service role and does not create an auth user. Signup later attaches
+ * the row. A filled honeypot is discarded. The response does not say whether
+ * the email already has access.
  */
 async function anonymousRequest(request: Request) {
   const body = await readBody(request);
@@ -168,6 +169,19 @@ async function anonymousRequest(request: Request) {
   if (ipLimited(clientIp(request))) return apiError("Try again later", 429);
 
   const service = createServiceClient();
+  const { data: profile, error: profileReadError } = await service
+    .from("profiles")
+    .select("id, role, access_status")
+    .eq("email", email)
+    .maybeSingle();
+  if (profileReadError) {
+    logError("supabase_write_failed", { table: "profiles", message: profileReadError.message });
+    return apiError("Could not save the request", 500);
+  }
+  if (profile && (profile.role !== "customer" || profile.access_status === "approved" || profile.access_status === "invited")) {
+    return json({ access_status: "requested" });
+  }
+
   const since = new Date(Date.now() - WINDOW_MS).toISOString();
   const { count, error: countError } = await service
     .from("access_requests")
@@ -181,7 +195,7 @@ async function anonymousRequest(request: Request) {
 
   const { data: open, error: openError } = await service
     .from("access_requests")
-    .select("id, note")
+    .select("id, note, user_id")
     .eq("email", email)
     .eq("status", "requested")
     .order("created_at", { ascending: false })
@@ -192,95 +206,24 @@ async function anonymousRequest(request: Request) {
     return apiError("Could not save the request", 500);
   }
   if (open) {
-    if (open.note !== name) {
-      const { error: updateError } = await service.from("access_requests").update({ note: name }).eq("id", open.id);
-      if (updateError) {
-        logError("supabase_write_failed", { table: "access_requests", message: updateError.message });
-        return apiError("Could not save the request", 500);
-      }
+    const { error: updateError } = await service
+      .from("access_requests")
+      .update({
+        note: name,
+        ...(profile && !open.user_id ? { user_id: profile.id } : {}),
+      })
+      .eq("id", open.id);
+    if (updateError) {
+      logError("supabase_write_failed", { table: "access_requests", message: updateError.message });
+      return apiError("Could not save the request", 500);
     }
     return json({ access_status: "requested" });
   }
 
   if ((count ?? 0) >= EMAIL_LIMIT) return apiError("Try again later", 429);
 
-  const { data: existingProfile, error: profileReadError } = await service
-    .from("profiles")
-    .select("id, role, access_status")
-    .eq("email", email)
-    .maybeSingle();
-  if (profileReadError) {
-    logError("supabase_write_failed", { table: "profiles", message: profileReadError.message });
-    return apiError("Could not save the request", 500);
-  }
-
-  let profile = existingProfile;
-  if (!profile) {
-    const { data: created, error: createError } = await service.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { display_name: name },
-    });
-    if (createError || !created.user) {
-      const { data: again } = await service
-        .from("profiles")
-        .select("id, role, access_status")
-        .eq("email", email)
-        .maybeSingle();
-      if (!again) {
-        logError("supabase_write_failed", {
-          table: "profiles",
-          message: createError?.message ?? "Could not create the user",
-        });
-        return apiError("Could not save the request", 500);
-      }
-      profile = again;
-    } else {
-      const { data: createdProfile, error: createdProfileError } = await service
-        .from("profiles")
-        .select("id, role, access_status")
-        .eq("id", created.user.id)
-        .maybeSingle();
-      if (createdProfileError || !createdProfile) {
-        logError("supabase_write_failed", {
-          table: "profiles",
-          message: createdProfileError?.message ?? "Profile was not created",
-        });
-        return apiError("Could not save the request", 500);
-      }
-      profile = createdProfile;
-    }
-  }
-
-  if (profile.role !== "customer" || profile.access_status === "approved" || profile.access_status === "invited") {
-    return json({ access_status: "requested" });
-  }
-
-  const { data: latest, error: latestError } = await service
-    .from("access_requests")
-    .select("id, status, note")
-    .eq("user_id", profile.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (latestError) {
-    logError("supabase_write_failed", { table: "access_requests", message: latestError.message });
-    return apiError("Could not save the request", 500);
-  }
-
-  if (latest?.status === "requested") {
-    if (latest.note !== name) {
-      const { error: updateError } = await service.from("access_requests").update({ note: name }).eq("id", latest.id);
-      if (updateError) {
-        logError("supabase_write_failed", { table: "access_requests", message: updateError.message });
-        return apiError("Could not save the request", 500);
-      }
-    }
-    return json({ access_status: "requested" });
-  }
-
   const { error: insertError } = await service.from("access_requests").insert({
-    user_id: profile.id,
+    user_id: profile?.id ?? null,
     email,
     note: body.note || name,
     status: "requested",
@@ -289,7 +232,7 @@ async function anonymousRequest(request: Request) {
     logError("supabase_write_failed", { table: "access_requests", message: insertError.message });
     return apiError("Could not save the request", 500);
   }
-  if (profile.access_status !== "requested") {
+  if (profile && profile.access_status !== "requested") {
     const { error: statusError } = await service
       .from("profiles")
       .update({ access_status: "requested" })
