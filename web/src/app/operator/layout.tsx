@@ -9,6 +9,7 @@ import { signOut } from "@/lib/portal/actions";
 const operatorLinks = [
   { href: "/operator", label: "Dashboard" },
   { href: "/operator/fleet", label: "Fleet" },
+  { href: "/operator/agreement", label: "Agreement" },
   { href: "/operator/availability", label: "Availability" },
   { href: "/operator/empty-legs", label: "Empty legs" },
   { href: "/operator/requests", label: "Requests" },

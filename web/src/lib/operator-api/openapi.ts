@@ -25,7 +25,10 @@ export const operatorOpenApi = {
       },
       put: {
         summary: "Upsert one aircraft by tail number",
-        description: "Matches (operator_id, tail_number). operator_id always comes from the key.",
+        description:
+          "Matches (operator_id, tail_number). operator_id always comes from the key. " +
+          "is_active true is rejected with 403 until an operator admin has accepted the current operator agreement. " +
+          "Aircraft that are already active are not deactivated.",
         requestBody: {
           required: true,
           content: {
@@ -53,7 +56,12 @@ export const operatorOpenApi = {
             },
           },
         },
-        responses: { "200": { description: "Upserted aircraft" }, "400": { description: "Invalid body" }, "401": { description: "Unauthorized" } },
+        responses: {
+          "200": { description: "Upserted aircraft" },
+          "400": { description: "Invalid body" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "is_active is true and the current operator agreement is not accepted" },
+        },
       },
     },
     "/availability": {

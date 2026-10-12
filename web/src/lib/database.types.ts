@@ -721,6 +721,9 @@ export type Database = {
       }
       operators: {
         Row: {
+          agreement_accepted_at: string | null
+          agreement_accepted_by: string | null
+          agreement_version: string | null
           certificate_number: string
           certificate_review_notes: string | null
           certificate_reviewed_at: string | null
@@ -743,6 +746,9 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
+          agreement_accepted_at?: string | null
+          agreement_accepted_by?: string | null
+          agreement_version?: string | null
           certificate_number: string
           certificate_review_notes?: string | null
           certificate_reviewed_at?: string | null
@@ -765,6 +771,9 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
+          agreement_accepted_at?: string | null
+          agreement_accepted_by?: string | null
+          agreement_version?: string | null
           certificate_number?: string
           certificate_review_notes?: string | null
           certificate_reviewed_at?: string | null
@@ -787,6 +796,13 @@ export type Database = {
           verified_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "operators_agreement_accepted_by_fkey"
+            columns: ["agreement_accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "operators_home_airport_id_fkey"
             columns: ["home_airport_id"]

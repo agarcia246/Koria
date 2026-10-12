@@ -1,5 +1,6 @@
 import { error, json } from "@/lib/api/auth";
 import { isOperatorKey, requireOperatorApiKey } from "@/lib/api/operator-key";
+import { AGREEMENT_REQUIRED_MESSAGE, operatorHasCurrentAgreement } from "@/lib/agreements";
 import { airportIdByIcao, pricingMode } from "@/lib/operator-api/scope";
 import { logError } from "@/lib/log";
 
@@ -36,6 +37,13 @@ export async function PUT(request: Request) {
 
   const { data: model } = await auth.supabase.from("aircraft_models").select("id").eq("id", modelId).maybeSingle();
   if (!model) return error("Unknown model_id", 400);
+
+  if (body.is_active !== undefined && Boolean(body.is_active)) {
+    const agreement = await operatorHasCurrentAgreement(auth.supabase, auth.operatorId);
+    if (!agreement.ok || !agreement.current) {
+      return error(AGREEMENT_REQUIRED_MESSAGE, 403);
+    }
+  }
 
   const homeBaseId = await airportIdByIcao(
     auth.supabase,
