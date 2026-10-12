@@ -1,5 +1,5 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
-import { BROKER_DISCLOSURE } from "@/lib/disclosures";
+import { brokerDisclosureTextFromSnapshot } from "@/lib/disclosures";
 import { haversineNm } from "@/lib/geo";
 import { logError } from "@/lib/log";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
@@ -124,7 +124,7 @@ export async function POST(
     operating_carrier_dba: (snapshot.dba as string) ?? operator?.dba ?? null,
     certificate_number:
       (snapshot.certificate_number as string) ?? operator?.certificate_number ?? null,
-    broker_role_disclosure: BROKER_DISCLOSURE,
+    broker_role_disclosure: brokerDisclosureTextFromSnapshot(snapshot),
     fbo: trip.fbo,
     estimated_block_minutes: estimatedBlockMinutes,
   });
