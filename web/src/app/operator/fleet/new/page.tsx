@@ -1,16 +1,23 @@
 import { createAircraft } from "@/lib/portal/actions";
+import { AirportFind, searchPortalAirports } from "@/lib/portal/airports";
 import { requireOperatorContext } from "@/lib/portal/operator";
 
-export default async function NewAircraftPage() {
+export default async function NewAircraftPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const ctx = await requireOperatorContext();
-  const [{ data: models }, { data: airports }] = await Promise.all([
+  const { q = "" } = await searchParams;
+  const [{ data: models }, airports] = await Promise.all([
     ctx.supabase.from("aircraft_models").select("*").order("name"),
-    ctx.supabase.from("airports").select("id, icao, iata, city").order("city"),
+    searchPortalAirports(ctx.supabase, q),
   ]);
 
   return (
     <div className="max-w-xl">
       <h1 className="font-display text-3xl">New aircraft</h1>
+      <AirportFind q={q} />
       <form action={createAircraft} className="mt-8 space-y-4">
         <Field label="Tail number" name="tail_number" required />
         <label className="block text-xs uppercase tracking-wide text-warm">

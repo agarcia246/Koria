@@ -1,9 +1,15 @@
 import { createAvailability, importAvailability } from "@/lib/portal/actions";
+import { AirportFind, searchPortalAirports } from "@/lib/portal/airports";
 import { requireOperatorContext } from "@/lib/portal/operator";
 
-export default async function AvailabilityPage() {
+export default async function AvailabilityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) return <p>No operator</p>;
+  const { q = "" } = await searchParams;
 
   const { data: fleet } = await ctx.supabase
     .from("aircraft")
@@ -12,7 +18,7 @@ export default async function AvailabilityPage() {
 
   const ids = (fleet ?? []).map((f) => f.id);
   const fleetMap = new Map((fleet ?? []).map((f) => [f.id, f.tail_number]));
-  const [{ data: blocks }, { data: airports }] = await Promise.all([
+  const [{ data: blocks }, airports] = await Promise.all([
     ids.length
       ? ctx.supabase
           .from("aircraft_availability")
@@ -20,12 +26,13 @@ export default async function AvailabilityPage() {
           .in("aircraft_id", ids)
           .order("starts_at", { ascending: false })
       : Promise.resolve({ data: [] as never[] }),
-    ctx.supabase.from("airports").select("id, city, iata, icao").order("city"),
+    searchPortalAirports(ctx.supabase, q),
   ]);
 
   return (
     <div>
       <h1 className="font-display text-3xl">Availability</h1>
+      <AirportFind q={q} />
       <form action={importAvailability} className="mt-8 grid gap-4 max-w-2xl border border-silver/40 p-4">
         <p className="text-sm text-warm">
           Upload an iCal or CSV for one aircraft. iCal events are blocked windows: the aircraft is busy, not free.
