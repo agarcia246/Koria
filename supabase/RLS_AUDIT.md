@@ -6,7 +6,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 
 | Table | Customer | Operator member | Admin | Notes |
 | --- | --- | --- | --- | --- |
-| profiles | own row | own row | all | `0024_terms_acceptance.sql` adds `terms_accepted_at` and `terms_version`. A customer can update their own row, including those columns. `POST /api/v1/me/accept-terms` writes the current version with the service role. |
+| profiles | own row | own row | all | `0024_terms_acceptance.sql` adds `terms_accepted_at` and `terms_version`. A customer can update their own row, including those columns. `POST /api/v1/me/accept-terms` writes the current version with the service role. `0025_account_deletion.sql` drops `profiles.id` → `auth.users` `ON DELETE CASCADE`. Deleting the auth user no longer deletes the profile or the trips, quotes, and bookings that hung off that cascade. `trip_requests.customer_id` is `ON DELETE RESTRICT`. `POST /api/v1/me/delete` anonymizes `display_name`, `email`, and `photo_url`, keeps `id`, deletes `passenger_profiles` and `notifications`, and then deletes the auth user with the service role. There is no phone column on `profiles`. |
 | access_requests | own | none | update | Operators do not review access. |
 | airports | read | read | write | |
 | operators | read | update own | write | `0022_operator_verification.sql` adds `verified_at`, `verified_by`, `certificate_reviewed_at`, `certificate_review_notes`, and `insurance_certificate_path`. A before-update trigger rejects changes to those columns unless the caller is an admin or the service role. Operator members can still update the rest of the row and use the portal while unverified. `0023_operator_agreement.sql` adds `agreement_version`, `agreement_accepted_at`, and `agreement_accepted_by`. A before-update trigger lets an operator admin, a platform admin, or the service role change those columns. A member cannot accept the agreement. |
@@ -19,7 +19,7 @@ Roles below mean a policy exists for that role. "None" is intentional and is not
 | aircraft_availability | read | read/write own fleet | via member policies | `0014` adds `source` (`manual`, `import`, `api`, default `manual`) and `import_batch_id`. Re-upload deletes only `source = import` for that aircraft. |
 | searches | own | none | own policy includes admin | Search text stays private to the customer. |
 | empty_legs | read published | write own | via member policies | |
-| trip_requests | own | read/update when the aircraft, a quote, or a fan-out row is theirs | included in customer policy | `operator_can_access_trip` includes `trip_request_operators`. |
+| trip_requests | own | read/update when the aircraft, a quote, or a fan-out row is theirs | included in customer policy | `operator_can_access_trip` includes `trip_request_operators`. `0025_account_deletion.sql` changes `customer_id` to `ON DELETE RESTRICT` so a profile delete cannot remove the trip. |
 | trip_request_operators | none | read and update own rows | all | Customers have no policy. Inserts are service-role only via `create_trip_with_fanout`. |
 | quotes | own trip | own operator | included | |
 | bookings | own trip | own quote | update | `deposit_percent` defaults from config (50) and can be overridden per booking. `deposit_received_at` is set when paid payments cover that percent. The trip stays `awaiting_payment` until the full customer total is paid. |

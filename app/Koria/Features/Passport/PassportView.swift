@@ -72,6 +72,14 @@ struct PassportView: View {
                     }
                 }
 
+                NavigationLink {
+                    AccountSettingsView()
+                } label: {
+                    Text("Settings")
+                        .font(KoriaFont.sans(16))
+                        .foregroundStyle(koria.foreground)
+                }
+
                 KoriaButton(title: "Sign out", style: .ghost) {
                     session.signOut()
                 }
