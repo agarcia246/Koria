@@ -439,8 +439,9 @@ struct InboxNotification: Identifiable, Decodable, Hashable, Sendable {
 }
 
 enum BrokerDisclosure {
-    /// TODO: aviation counsel — placeholder Part 295 broker disclosure.
-    static let fallback = "KORIA acts as an air charter broker, not the operator of the aircraft. The direct air carrier named on this trip has operational control."
+    /// Used only when the booking has no `broker_role_disclosure` snapshot.
+    /// Counsel replaces the server text in `web/src/lib/disclosures.ts`.
+    static let fallback = "PENDING COUNSEL. KORIA acts as an air charter broker, not the operator of the aircraft. The direct air carrier named on this trip has operational control."
 }
 
 extension Date {

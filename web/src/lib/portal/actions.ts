@@ -10,7 +10,7 @@ import { requireOperatorContext } from "@/lib/portal/operator";
 import { resolvePlatformFee } from "@/lib/fees";
 import { computeOperatorAmount } from "@/lib/pricing";
 import { haversineNm } from "@/lib/geo";
-import { BROKER_DISCLOSURE } from "@/lib/disclosures";
+import { brokerDisclosureFields } from "@/lib/disclosures";
 import { sendEmail } from "@/lib/email";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { sendOperatorInvite } from "@/lib/operators/invite";
@@ -337,7 +337,7 @@ async function carrierSnapshot(supabase: Awaited<ReturnType<typeof requireOperat
     certificate_number: op?.certificate_number,
     certificate_type: op?.certificate_type,
     operational_control_disclosure: op?.operational_control_disclosure,
-    broker_role_disclosure: BROKER_DISCLOSURE,
+    ...brokerDisclosureFields(),
   };
 }
 

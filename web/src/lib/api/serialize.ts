@@ -125,7 +125,7 @@ export function serializeBooking(b: BookingRow | null) {
     operating_carrier_legal_name: b.operating_carrier_legal_name,
     operating_carrier_dba: b.operating_carrier_dba,
     certificate_number: b.certificate_number,
-    broker_role_disclosure: b.broker_role_disclosure ?? BROKER_DISCLOSURE,
+    broker_role_disclosure: b.broker_role_disclosure,
     operator_amount: Number(b.operator_amount),
     platform_fee_amount: Number(b.platform_fee_amount),
     taxes_amount: Number(b.taxes_amount),
