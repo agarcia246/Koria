@@ -1,3 +1,4 @@
+import { recordAudit, scalarDiff } from "@/lib/audit";
 import { error, json } from "@/lib/api/auth";
 import { isOperatorKey, requireOperatorApiKey } from "@/lib/api/operator-key";
 import { AGREEMENT_REQUIRED_MESSAGE, operatorHasCurrentAgreement } from "@/lib/agreements";
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const requestId = crypto.randomUUID();
   const auth = await requireOperatorApiKey(request);
   if (!isOperatorKey(auth)) return auth;
 
@@ -81,7 +83,9 @@ export async function PUT(request: Request) {
 
   const { data: existing } = await auth.supabase
     .from("aircraft")
-    .select("id")
+    .select(
+      "id, operator_id, model_id, tail_number, seating, year, wifi, lavatory, pets, golf, skis, baggage_cu_ft, home_base_id, is_active, pricing_mode_default, cabin_notes",
+    )
     .eq("operator_id", auth.operatorId)
     .eq("tail_number", tail)
     .maybeSingle();
@@ -96,9 +100,24 @@ export async function PUT(request: Request) {
         .single()
     : await auth.supabase.from("aircraft").insert(payload).select("id, tail_number").single();
 
-  if (write.error) {
-    logError("supabase_write_failed", { table: "aircraft", message: write.error.message });
-    return error(write.error.message, 500);
+  if (write.error || !write.data) {
+    logError("supabase_write_failed", {
+      table: "aircraft",
+      message: write.error?.message ?? "aircraft write failed",
+      request_id: requestId,
+    });
+    return error(write.error?.message ?? "aircraft write failed", 500);
   }
+  await recordAudit(auth.supabase, {
+    action: existing ? "aircraft.update" : "aircraft.create",
+    entityType: "aircraft",
+    entityId: write.data.id,
+    summary: existing
+      ? `Updated aircraft ${tail} via operator API`
+      : `Created aircraft ${tail} via operator API`,
+    diff: scalarDiff(existing, payload),
+    requestId,
+    actorRole: "operator",
+  });
   return json(write.data);
 }

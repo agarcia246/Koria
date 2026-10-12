@@ -8,6 +8,21 @@ import {
 } from "@/lib/portal/actions";
 import { faaRegistryLookupUrl } from "@/lib/operators/faa";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/database.types";
+
+function formatDiff(diff: Json | null): string {
+  if (!diff || typeof diff !== "object" || Array.isArray(diff)) return "";
+  return Object.entries(diff)
+    .map(([key, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+      const row = value as { before?: Json; after?: Json };
+      const before = row.before == null ? "—" : String(row.before);
+      const after = row.after == null ? "—" : String(row.after);
+      return `${key}: ${before} → ${after}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
 
 export default async function AdminOperatorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -32,6 +47,28 @@ export default async function AdminOperatorPage({ params }: { params: Promise<{ 
   const markVerified = adminMarkOperatorVerified.bind(null, operator.id);
   const clearVerification = adminClearOperatorVerification.bind(null, operator.id);
   const lookup = faaRegistryLookupUrl(operator.certificate_number);
+
+  const [{ data: fleet }, { data: legs }] = await Promise.all([
+    supabase.from("aircraft").select("id").eq("operator_id", operator.id),
+    supabase.from("empty_legs").select("id").eq("operator_id", operator.id),
+  ]);
+  const entityIds = [
+    operator.id,
+    ...(fleet ?? []).map((row) => row.id),
+    ...(legs ?? []).map((row) => row.id),
+  ];
+  const { data: events } = await supabase
+    .from("audit_events")
+    .select("id, created_at, actor_profile_id, actor_role, action, entity_type, summary, diff")
+    .in("entity_id", entityIds)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const actorIds = [...new Set((events ?? []).map((event) => event.actor_profile_id).filter((id): id is string => Boolean(id)))];
+  const { data: actors } = actorIds.length
+    ? await supabase.from("profiles").select("id, display_name, email").in("id", actorIds)
+    : { data: [] };
+  const actorName = new Map((actors ?? []).map((actor) => [actor.id, actor.display_name || actor.email || "Admin"]));
 
   return (
     <div className="max-w-xl">
@@ -115,6 +152,46 @@ export default async function AdminOperatorPage({ params }: { params: Promise<{ 
       <p className="mt-4 text-sm text-warm">
         Clearing verification removes the operator from search and new trip fan-out. Their portal access stays.
       </p>
+
+      <h2 className="font-display text-2xl mt-12">Audit log</h2>
+      <p className="mt-2 text-sm text-warm">Changes to this operator, its aircraft, and its empty legs.</p>
+      {(events ?? []).length === 0 ? (
+        <p className="mt-4 text-sm text-warm">No audit events yet.</p>
+      ) : (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-silver/40 text-left text-xs uppercase text-warm">
+                <th className="py-2 pr-3">When</th>
+                <th className="pr-3">Actor</th>
+                <th className="pr-3">Action</th>
+                <th>Summary</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(events ?? []).map((event) => {
+                const diff = formatDiff(event.diff);
+                const actor = event.actor_profile_id
+                  ? actorName.get(event.actor_profile_id) || event.actor_role || "Unknown"
+                  : event.actor_role || "Unknown";
+                return (
+                  <tr key={event.id} className="border-b border-silver/30 align-top">
+                    <td className="py-3 pr-3 whitespace-nowrap text-warm">
+                      {event.created_at.slice(0, 16).replace("T", " ")}
+                    </td>
+                    <td className="pr-3">{actor}</td>
+                    <td className="pr-3 whitespace-nowrap">{event.action}</td>
+                    <td>
+                      <p>{event.summary}</p>
+                      {diff ? <pre className="mt-1 whitespace-pre-wrap text-xs text-warm">{diff}</pre> : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

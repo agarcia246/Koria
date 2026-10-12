@@ -24,6 +24,7 @@ import { nextStatusOnQuoteSent } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
 import { parseAvailabilityFile } from "@/lib/availability/parse";
 import { assertWrite } from "@/lib/portal/write";
+import { recordAudit, scalarDiff } from "@/lib/audit";
 
 export async function signOut() {
   const supabase = await createClient();
@@ -64,17 +65,54 @@ export async function acceptOperatorAgreement() {
       "/operator/agreement",
     );
   }
+  const { data: before } = await ctx.supabase
+    .from("operators")
+    .select("agreement_version, agreement_accepted_at, agreement_accepted_by")
+    .eq("id", ctx.operatorId)
+    .maybeSingle();
+  const acceptedAt = new Date().toISOString();
   const { error } = await ctx.supabase
     .from("operators")
     .update({
       agreement_version: CURRENT_OPERATOR_AGREEMENT.version,
-      agreement_accepted_at: new Date().toISOString(),
+      agreement_accepted_at: acceptedAt,
       agreement_accepted_by: ctx.userId,
     })
     .eq("id", ctx.operatorId);
   await assertWrite("operators", error, "/operator/agreement");
+  await recordAudit(ctx.supabase, {
+    action: "operator.agreement_accept",
+    entityType: "operator",
+    entityId: ctx.operatorId,
+    summary: `Accepted operator agreement ${CURRENT_OPERATOR_AGREEMENT.version}`,
+    diff: scalarDiff(before, {
+      agreement_version: CURRENT_OPERATOR_AGREEMENT.version,
+      agreement_accepted_at: acceptedAt,
+      agreement_accepted_by: ctx.userId,
+    }),
+  });
   revalidatePath("/operator/agreement");
   revalidatePath("/operator/fleet");
+}
+
+function aircraftScalars(formData: FormData) {
+  return {
+    model_id: String(formData.get("model_id")),
+    tail_number: String(formData.get("tail_number")),
+    year: formData.get("year") ? Number(formData.get("year")) : null,
+    seating: Number(formData.get("seating")),
+    interior_configuration: String(formData.get("interior_configuration") || "") || null,
+    baggage_cu_ft: formData.get("baggage_cu_ft") ? Number(formData.get("baggage_cu_ft")) : null,
+    wifi: formData.get("wifi") === "on",
+    lavatory: formData.get("lavatory") === "on",
+    pets: formData.get("pets") === "on",
+    golf: formData.get("golf") === "on",
+    skis: formData.get("skis") === "on",
+    cabin_notes: String(formData.get("cabin_notes") || "") || null,
+    home_base_id: String(formData.get("home_base_id") || "") || null,
+    is_active: formData.get("is_active") === "on",
+    pricing_mode_default: (String(formData.get("pricing_mode_default") || "quote_required") as PricingMode),
+  };
 }
 
 export async function createAircraft(formData: FormData) {
@@ -84,33 +122,25 @@ export async function createAircraft(formData: FormData) {
   const activating = formData.get("is_active") === "on";
   await rejectIfActivatingWithoutAgreement(ctx.supabase, ctx.operatorId, activating, "/operator/fleet/new");
 
+  const aircraftValues = aircraftScalars(formData);
   const { data, error } = await ctx.supabase
     .from("aircraft")
     .insert({
       operator_id: ctx.operatorId,
-      model_id: String(formData.get("model_id")),
-      tail_number: String(formData.get("tail_number")),
-      year: formData.get("year") ? Number(formData.get("year")) : null,
-      seating: Number(formData.get("seating")),
-      interior_configuration: String(formData.get("interior_configuration") || "") || null,
-      baggage_cu_ft: formData.get("baggage_cu_ft")
-        ? Number(formData.get("baggage_cu_ft"))
-        : null,
-      wifi: formData.get("wifi") === "on",
-      lavatory: formData.get("lavatory") === "on",
-      pets: formData.get("pets") === "on",
-      golf: formData.get("golf") === "on",
-      skis: formData.get("skis") === "on",
-      cabin_notes: String(formData.get("cabin_notes") || "") || null,
-      home_base_id: String(formData.get("home_base_id") || "") || null,
-      is_active: formData.get("is_active") === "on",
-      pricing_mode_default: (String(formData.get("pricing_mode_default") || "quote_required") as PricingMode),
+      ...aircraftValues,
     })
     .select("id")
     .single();
 
   await assertWrite("aircraft", error, "/operator/fleet/new");
   if (!data) throw new Error("Failed to create aircraft");
+  await recordAudit(ctx.supabase, {
+    action: "aircraft.create",
+    entityType: "aircraft",
+    entityId: data.id,
+    summary: `Created aircraft ${aircraftValues.tail_number}`,
+    diff: scalarDiff(null, { operator_id: ctx.operatorId, ...aircraftValues }),
+  });
   revalidatePath("/operator/fleet");
   redirect(`/operator/fleet/${data.id}`);
 }
@@ -120,7 +150,9 @@ export async function updateAircraft(aircraftId: string, formData: FormData) {
   const returnPath = `/operator/fleet/${aircraftId}`;
   const { data: existing, error: existingError } = await ctx.supabase
     .from("aircraft")
-    .select("operator_id")
+    .select(
+      "operator_id, model_id, tail_number, year, seating, interior_configuration, baggage_cu_ft, wifi, lavatory, pets, golf, skis, cabin_notes, home_base_id, is_active, pricing_mode_default",
+    )
     .eq("id", aircraftId)
     .maybeSingle();
   await assertWrite("aircraft", existingError, returnPath);
@@ -132,30 +164,17 @@ export async function updateAircraft(aircraftId: string, formData: FormData) {
     returnPath,
   );
 
-  const { error } = await ctx.supabase
-    .from("aircraft")
-    .update({
-      model_id: String(formData.get("model_id")),
-      tail_number: String(formData.get("tail_number")),
-      year: formData.get("year") ? Number(formData.get("year")) : null,
-      seating: Number(formData.get("seating")),
-      interior_configuration: String(formData.get("interior_configuration") || "") || null,
-      baggage_cu_ft: formData.get("baggage_cu_ft")
-        ? Number(formData.get("baggage_cu_ft"))
-        : null,
-      wifi: formData.get("wifi") === "on",
-      lavatory: formData.get("lavatory") === "on",
-      pets: formData.get("pets") === "on",
-      golf: formData.get("golf") === "on",
-      skis: formData.get("skis") === "on",
-      cabin_notes: String(formData.get("cabin_notes") || "") || null,
-      home_base_id: String(formData.get("home_base_id") || "") || null,
-      is_active: formData.get("is_active") === "on",
-      pricing_mode_default: (String(formData.get("pricing_mode_default") || "quote_required") as PricingMode),
-    })
-    .eq("id", aircraftId);
+  const aircraftValues = aircraftScalars(formData);
+  const { error } = await ctx.supabase.from("aircraft").update(aircraftValues).eq("id", aircraftId);
 
   await assertWrite("aircraft", error, `/operator/fleet/${aircraftId}`);
+  await recordAudit(ctx.supabase, {
+    action: "aircraft.update",
+    entityType: "aircraft",
+    entityId: aircraftId,
+    summary: `Updated aircraft ${aircraftValues.tail_number}`,
+    diff: scalarDiff(existing, aircraftValues),
+  });
   revalidatePath(`/operator/fleet/${aircraftId}`);
   revalidatePath("/operator/fleet");
 }
@@ -554,6 +573,21 @@ export async function acceptPrice(tripId: string) {
     .select("id")
     .single();
   await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
+  if (quote?.id) {
+    await recordAudit(ctx.supabase, {
+      action: "quote.accept_price",
+      entityType: "trip_request",
+      entityId: tripId,
+      summary: `Accepted published price on ${aircraft.tail_number}`,
+      diff: scalarDiff(null, {
+        quote_id: quote.id,
+        aircraft_id: aircraft.id,
+        operator_amount: priced.amount,
+        customer_total: customerTotal,
+        status: "pending",
+      }),
+    });
+  }
 
   const { error: fanoutError } = await markFanoutQuoted(ctx.supabase, tripId, ctx.operatorId);
   await assertWrite("trip_request_operators", fanoutError, `/operator/requests/${tripId}`);
@@ -638,6 +672,21 @@ export async function sendQuote(tripId: string, formData: FormData) {
     .select("id")
     .single();
   await assertWrite("quotes", quoteError, `/operator/requests/${tripId}`);
+  if (quote?.id) {
+    await recordAudit(ctx.supabase, {
+      action: "quote.send",
+      entityType: "trip_request",
+      entityId: tripId,
+      summary: isCounter ? "Sent a counter quote" : "Sent a quote",
+      diff: scalarDiff(null, {
+        quote_id: quote.id,
+        aircraft_id: aircraftId,
+        operator_amount: operatorAmount,
+        customer_total: customerTotal,
+        status: "pending",
+      }),
+    });
+  }
 
   const { error: fanoutError } = await markFanoutQuoted(ctx.supabase, tripId, ctx.operatorId);
   await assertWrite("trip_request_operators", fanoutError, `/operator/requests/${tripId}`);
@@ -850,6 +899,19 @@ export async function adminReviewAccess(
     })
     .eq("id", requestId);
   await assertWrite("access_requests", reviewError, "/admin/access");
+  await recordAudit(service, {
+    action: decision === "approved" ? "access.approve" : "access.decline",
+    entityType: "access_request",
+    entityId: requestId,
+    summary: decision === "approved" ? `Approved access for ${req.email}` : `Declined access for ${req.email}`,
+    diff: scalarDiff(
+      { status: req.status, decision_note: req.decision_note },
+      {
+        status: decision,
+        decision_note: decision === "declined" ? decisionNote : req.decision_note,
+      },
+    ),
+  });
 
   if (req.user_id) {
     const { error: profileError } = await service
@@ -883,14 +945,27 @@ export async function adminInviteAccess(formData: FormData) {
   if (profile?.role !== "admin") throw new Error("Admin only");
 
   const email = String(formData.get("email")).trim().toLowerCase();
-  const { error: inviteRowError } = await service.from("access_requests").insert({
-    email,
-    status: "invited",
-    reviewed_by: user.id,
-    invite_code: crypto.randomUUID().slice(0, 8),
-    note: "Invited by admin",
-  });
+  const { data: inviteRow, error: inviteRowError } = await service
+    .from("access_requests")
+    .insert({
+      email,
+      status: "invited",
+      reviewed_by: user.id,
+      invite_code: crypto.randomUUID().slice(0, 8),
+      note: "Invited by admin",
+    })
+    .select("id")
+    .single();
   await assertWrite("access_requests", inviteRowError, "/admin/access");
+  if (inviteRow) {
+    await recordAudit(service, {
+      action: "access.invite",
+      entityType: "access_request",
+      entityId: inviteRow.id,
+      summary: `Invited ${email}`,
+      diff: scalarDiff(null, { email, status: "invited" }),
+    });
+  }
 
   // If user already exists, approve immediately
   const { data: existing } = await service
@@ -1057,14 +1132,27 @@ export async function adminUploadInsuranceCertificate(operatorId: string, formDa
 export async function adminMarkOperatorVerified(operatorId: string) {
   const returnPath = `/admin/operators/${operatorId}`;
   const { supabase, userId } = await requirePlatformAdmin(returnPath);
+  const { data: before } = await supabase
+    .from("operators")
+    .select("verified_at, verified_by")
+    .eq("id", operatorId)
+    .maybeSingle();
+  const verifiedAt = new Date().toISOString();
   const { error } = await supabase
     .from("operators")
     .update({
-      verified_at: new Date().toISOString(),
+      verified_at: verifiedAt,
       verified_by: userId,
     })
     .eq("id", operatorId);
   await assertWrite("operators", error, returnPath);
+  await recordAudit(supabase, {
+    action: "operator.verify",
+    entityType: "operator",
+    entityId: operatorId,
+    summary: "Marked operator verified",
+    diff: scalarDiff(before, { verified_at: verifiedAt, verified_by: userId }),
+  });
   revalidatePath(returnPath);
   revalidatePath("/admin/operators");
 }
@@ -1072,6 +1160,11 @@ export async function adminMarkOperatorVerified(operatorId: string) {
 export async function adminClearOperatorVerification(operatorId: string) {
   const returnPath = `/admin/operators/${operatorId}`;
   const { supabase } = await requirePlatformAdmin(returnPath);
+  const { data: before } = await supabase
+    .from("operators")
+    .select("verified_at, verified_by")
+    .eq("id", operatorId)
+    .maybeSingle();
   const { error } = await supabase
     .from("operators")
     .update({
@@ -1080,6 +1173,13 @@ export async function adminClearOperatorVerification(operatorId: string) {
     })
     .eq("id", operatorId);
   await assertWrite("operators", error, returnPath);
+  await recordAudit(supabase, {
+    action: "operator.unverify",
+    entityType: "operator",
+    entityId: operatorId,
+    summary: "Cleared operator verification",
+    diff: scalarDiff(before, { verified_at: null, verified_by: null }),
+  });
   revalidatePath(returnPath);
   revalidatePath("/admin/operators");
 }
@@ -1098,15 +1198,34 @@ export async function adminRecordPayment(bookingId: string, formData: FormData) 
     .single();
   if (profile?.role !== "admin") throw new Error("Admin only");
 
+  const amount = Number(formData.get("amount"));
+  const paidAt = String(formData.get("paid_at") || "");
+  const providerRef = String(formData.get("provider_ref") || "").trim();
   const recorded = await recordWirePayment(service, {
     bookingId,
-    amount: Number(formData.get("amount")),
-    paidAt: String(formData.get("paid_at") || ""),
-    providerRef: String(formData.get("provider_ref") || ""),
+    amount,
+    paidAt,
+    providerRef,
   });
   if (!recorded.ok) {
     await assertWrite(recorded.table, { message: recorded.message }, `/admin/bookings/${bookingId}`);
+    return;
   }
+
+  await recordAudit(service, {
+    action: "payment.record",
+    entityType: "booking",
+    entityId: bookingId,
+    summary: `Recorded a wire payment of ${amount}`,
+    diff: scalarDiff(null, {
+      payment_id: recorded.paymentId,
+      amount,
+      paid_at: paidAt,
+      provider_ref: providerRef,
+      status: "paid",
+      confirmed: recorded.confirmed,
+    }),
+  });
 
   revalidatePath("/admin/bookings");
   revalidatePath(`/admin/bookings/${bookingId}`);
@@ -1130,7 +1249,7 @@ export async function adminSetDepositPercent(bookingId: string, formData: FormDa
 
   const { data: booking, error: bookingError } = await service
     .from("bookings")
-    .select("id, customer_total, deposit_received_at")
+    .select("id, customer_total, deposit_percent, deposit_received_at")
     .eq("id", bookingId)
     .maybeSingle();
   await assertWrite("bookings", bookingError, returnPath);
@@ -1152,6 +1271,16 @@ export async function adminSetDepositPercent(bookingId: string, formData: FormDa
     })
     .eq("id", bookingId);
   await assertWrite("bookings", error, returnPath);
+  await recordAudit(service, {
+    action: "booking.deposit_override",
+    entityType: "booking",
+    entityId: bookingId,
+    summary: `Set deposit percent to ${percent}`,
+    diff: scalarDiff(
+      { deposit_percent: booking.deposit_percent },
+      { deposit_percent: percent },
+    ),
+  });
 
   revalidatePath("/admin/bookings");
   revalidatePath(returnPath);
@@ -1173,16 +1302,32 @@ export async function adminMarkPayoutSent(payoutId: string, formData: FormData) 
     await assertWrite("payouts", { message: "Date and reference are required" }, "/admin/payouts");
   }
 
-  const { error } = await service
+  const { data: before } = await service
+    .from("payouts")
+    .select("status, sent_at, reference")
+    .eq("id", payoutId)
+    .maybeSingle();
+  const sentAtIso = `${sentAt}T00:00:00.000Z`;
+  const { data: updated, error } = await service
     .from("payouts")
     .update({
       status: "sent",
-      sent_at: `${sentAt}T00:00:00.000Z`,
+      sent_at: sentAtIso,
       reference,
     })
     .eq("id", payoutId)
-    .eq("status", "unpaid");
+    .eq("status", "unpaid")
+    .select("id");
   await assertWrite("payouts", error, "/admin/payouts");
+  if (updated?.length) {
+    await recordAudit(service, {
+      action: "payout.sent",
+      entityType: "payout",
+      entityId: payoutId,
+      summary: "Marked payout sent",
+      diff: scalarDiff(before, { status: "sent", sent_at: sentAtIso, reference }),
+    });
+  }
   revalidatePath("/admin/payouts");
   revalidatePath("/operator/bookings");
 }
@@ -1204,15 +1349,31 @@ export async function adminMarkRefundSent(paymentId: string, bookingId: string, 
     await assertWrite("payments", { message: "Date and reference are required" }, returnPath);
   }
 
-  const { error } = await service
+  const { data: before } = await service
+    .from("payments")
+    .select("status, paid_at, provider_ref")
+    .eq("id", paymentId)
+    .maybeSingle();
+  const sentAtIso = `${sentAt}T00:00:00.000Z`;
+  const { data: updated, error } = await service
     .from("payments")
     .update({
       status: "refund_sent",
-      paid_at: `${sentAt}T00:00:00.000Z`,
+      paid_at: sentAtIso,
       provider_ref: reference,
     })
     .eq("id", paymentId)
-    .eq("status", "refund_due");
+    .eq("status", "refund_due")
+    .select("id");
   await assertWrite("payments", error, returnPath);
+  if (updated?.length) {
+    await recordAudit(service, {
+      action: "refund.sent",
+      entityType: "payment",
+      entityId: paymentId,
+      summary: "Marked refund sent",
+      diff: scalarDiff(before, { status: "refund_sent", paid_at: sentAtIso, provider_ref: reference }),
+    });
+  }
   revalidatePath(returnPath);
 }

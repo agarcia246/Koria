@@ -414,6 +414,53 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_events: {
+        Row: {
+          action: string
+          actor_profile_id: string | null
+          actor_role: string | null
+          created_at: string
+          diff: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          request_id: string | null
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_profile_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          diff?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          request_id?: string | null
+          summary: string
+        }
+        Update: {
+          action?: string
+          actor_profile_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          diff?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          request_id?: string | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_events_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           broker_role_disclosure: string | null

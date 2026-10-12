@@ -27,7 +27,9 @@ export function sumPaidPayments(
 export async function recordWirePayment(
   client: Client,
   args: { bookingId: string; amount: number; paidAt: string; providerRef: string },
-): Promise<{ ok: true; confirmed: boolean } | { ok: false; table: string; message: string }> {
+): Promise<
+  { ok: true; confirmed: boolean; paymentId: string } | { ok: false; table: string; message: string }
+> {
   const amount = money(args.amount);
   if (!(amount > 0)) return { ok: false, table: "payments", message: "Amount must be greater than zero" };
   const providerRef = args.providerRef.trim();
@@ -50,18 +52,23 @@ export async function recordWirePayment(
     return { ok: false, table: "bookings", message: "This booking is cancelled" };
   }
 
-  const { error: insertError } = await client.from("payments").insert({
-    booking_id: booking.id,
-    amount,
-    currency: booking.currency,
-    provider: "wire",
-    provider_ref: providerRef,
-    status: "paid",
-    paid_at: `${args.paidAt}T00:00:00.000Z`,
-  });
-  if (insertError) {
-    logError("supabase_write_failed", { table: "payments", message: insertError.message });
-    return { ok: false, table: "payments", message: insertError.message };
+  const { data: payment, error: insertError } = await client
+    .from("payments")
+    .insert({
+      booking_id: booking.id,
+      amount,
+      currency: booking.currency,
+      provider: "wire",
+      provider_ref: providerRef,
+      status: "paid",
+      paid_at: `${args.paidAt}T00:00:00.000Z`,
+    })
+    .select("id")
+    .single();
+  if (insertError || !payment) {
+    const message = insertError?.message ?? "Payment insert failed";
+    logError("supabase_write_failed", { table: "payments", message });
+    return { ok: false, table: "payments", message };
   }
 
   const { data: payments, error: paymentsError } = await client
@@ -120,7 +127,7 @@ export async function recordWirePayment(
   }
 
   if (paid + 0.001 < customerTotal) {
-    return { ok: true, confirmed: false };
+    return { ok: true, confirmed: false, paymentId: payment.id };
   }
 
   const confirmed = await confirmTripAfterPayment(client, booking.id);
@@ -128,5 +135,5 @@ export async function recordWirePayment(
     logError("supabase_write_failed", { table: confirmed.table, message: confirmed.error.message });
     return { ok: false, table: confirmed.table, message: confirmed.error.message };
   }
-  return { ok: true, confirmed: true };
+  return { ok: true, confirmed: true, paymentId: payment.id };
 }
