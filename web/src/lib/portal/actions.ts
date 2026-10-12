@@ -1719,3 +1719,180 @@ export async function adminMarkTripCompleted(tripId: string) {
   revalidatePath("/admin/trips");
   revalidatePath("/admin/bookings");
 }
+
+const TEAM_PATH = "/operator/team";
+
+async function requireOperatorTeamAdmin() {
+  const ctx = await requireOperatorContext();
+  if (!ctx.operatorId) throw new Error("No operator");
+  const { data: membership } = await ctx.supabase
+    .from("operator_members")
+    .select("role")
+    .eq("operator_id", ctx.operatorId)
+    .eq("profile_id", ctx.userId)
+    .maybeSingle();
+  if (membership?.role !== "admin") {
+    await assertWrite(
+      "operator_members",
+      { message: "Only an operator admin can manage the team." },
+      TEAM_PATH,
+    );
+  }
+  return { ...ctx, operatorId: ctx.operatorId };
+}
+
+function memberRole(value: FormDataEntryValue | null): "admin" | "member" {
+  return value === "admin" ? "admin" : "member";
+}
+
+/**
+ * A profile belongs to one operator. Inviting someone who already has a
+ * membership on a different operator is rejected. They are not moved.
+ */
+export async function inviteOperatorMember(formData: FormData) {
+  const ctx = await requireOperatorTeamAdmin();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const role = memberRole(formData.get("role"));
+  if (!email.includes("@")) {
+    await assertWrite("operator_members", { message: "A valid email is required." }, TEAM_PATH);
+  }
+
+  const service = createServiceClient();
+  const { data: operator } = await service.from("operators").select("name").eq("id", ctx.operatorId).maybeSingle();
+  if (!operator) {
+    await assertWrite("operators", { message: "Operator not found." }, TEAM_PATH);
+    return;
+  }
+
+  const { data: existingProfile } = await service
+    .from("profiles")
+    .select("id, role")
+    .ilike("email", email)
+    .maybeSingle();
+
+  let profileId = existingProfile?.id ?? null;
+  let account: "new" | "existing" = existingProfile ? "existing" : "new";
+
+  if (existingProfile?.role === "admin") {
+    await assertWrite(
+      "operator_members",
+      { message: "A platform admin cannot be added to an operator." },
+      TEAM_PATH,
+    );
+  }
+
+  if (!profileId) {
+    const { data: created, error: createError } = await service.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (createError || !created.user) {
+      const { data: list } = await service.auth.admin.listUsers({ perPage: 1000 });
+      const found = list?.users?.find((user) => user.email?.toLowerCase() === email);
+      if (!found) throw new Error(createError?.message || "Could not create the user");
+      profileId = found.id;
+      account = "existing";
+    } else {
+      profileId = created.user.id;
+      account = "new";
+    }
+  }
+
+  const { data: memberships } = await service
+    .from("operator_members")
+    .select("operator_id, role")
+    .eq("profile_id", profileId);
+  const other = (memberships ?? []).find((row) => row.operator_id !== ctx.operatorId);
+  if (other) {
+    await assertWrite(
+      "operator_members",
+      { message: "That person already belongs to another operator and was not moved." },
+      TEAM_PATH,
+    );
+  }
+  if ((memberships ?? []).some((row) => row.operator_id === ctx.operatorId)) {
+    await assertWrite("operator_members", { message: "That person is already on this team." }, TEAM_PATH);
+  }
+
+  const { error: roleError } = await service
+    .from("profiles")
+    .update({ role: "operator", access_status: "approved" })
+    .eq("id", profileId);
+  await assertWrite("profiles", roleError, TEAM_PATH);
+
+  const { error: memberError } = await service
+    .from("operator_members")
+    .insert({ operator_id: ctx.operatorId, profile_id: profileId, role });
+  await assertWrite("operator_members", memberError, TEAM_PATH);
+
+  await sendOperatorInvite({
+    email,
+    operatorName: operator.name,
+    role,
+    account,
+  });
+
+  await recordAudit(ctx.supabase, {
+    action: "operator.invite",
+    entityType: "operator",
+    entityId: ctx.operatorId,
+    summary: `Invited ${email} as ${role}`,
+    diff: scalarDiff({ email: null, role: null }, { email, role, profile_id: profileId }),
+  });
+  revalidatePath(TEAM_PATH);
+}
+
+export async function setOperatorMemberRole(formData: FormData) {
+  const ctx = await requireOperatorTeamAdmin();
+  const profileId = String(formData.get("profile_id") || "");
+  const role = memberRole(formData.get("role"));
+  if (!profileId || profileId === ctx.userId) {
+    await assertWrite("operator_members", { message: "You cannot change your own role." }, TEAM_PATH);
+  }
+
+  const service = createServiceClient();
+  const { data: before } = await service
+    .from("operator_members")
+    .select("id, role")
+    .eq("operator_id", ctx.operatorId)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  if (!before) {
+    await assertWrite("operator_members", { message: "That person is not on this team." }, TEAM_PATH);
+    return;
+  }
+  if (before.role === role) {
+    revalidatePath(TEAM_PATH);
+    return;
+  }
+  if (before.role === "admin" && role !== "admin") {
+    const { count } = await service
+      .from("operator_members")
+      .select("id", { count: "exact", head: true })
+      .eq("operator_id", ctx.operatorId)
+      .eq("role", "admin");
+    if ((count ?? 0) <= 1) {
+      await assertWrite(
+        "operator_members",
+        { message: "The operator needs at least one admin." },
+        TEAM_PATH,
+      );
+    }
+  }
+
+  const { error } = await service
+    .from("operator_members")
+    .update({ role })
+    .eq("id", before.id);
+  await assertWrite("operator_members", error, TEAM_PATH);
+
+  const { data: profile } = await service.from("profiles").select("email").eq("id", profileId).maybeSingle();
+  await recordAudit(ctx.supabase, {
+    action: "operator.member_role",
+    entityType: "operator",
+    entityId: ctx.operatorId,
+    summary: `Changed ${profile?.email || profileId} from ${before.role} to ${role}`,
+    diff: scalarDiff({ role: before.role, profile_id: profileId }, { role, profile_id: profileId }),
+  });
+  revalidatePath(TEAM_PATH);
+}

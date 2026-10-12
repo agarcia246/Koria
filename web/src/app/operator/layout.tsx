@@ -10,6 +10,7 @@ const operatorLinks = [
   { href: "/operator", label: "Dashboard" },
   { href: "/operator/fleet", label: "Fleet" },
   { href: "/operator/agreement", label: "Agreement" },
+  { href: "/operator/team", label: "Team" },
   { href: "/operator/availability", label: "Availability" },
   { href: "/operator/empty-legs", label: "Empty legs" },
   { href: "/operator/requests", label: "Requests" },
