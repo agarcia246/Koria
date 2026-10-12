@@ -70,6 +70,16 @@ insert into public.tax_rules (
   )
 on conflict (id) do nothing;
 
+-- Commercial refund schedule. Counsel can replace the percents by inserting
+-- rows. The greatest hours_before_departure that is still <= the time
+-- remaining wins. 14 days: 100%. 7 days: 50%. Otherwise 0%.
+insert into public.refund_policies (id, hours_before_departure, refund_percent, effective_from)
+values
+  ('55555555-5555-5555-5555-555555550001', 336, 100, '2026-01-01'),
+  ('55555555-5555-5555-5555-555555550002', 168, 50, '2026-01-01'),
+  ('55555555-5555-5555-5555-555555550003', 0, 0, '2026-01-01')
+on conflict (id) do nothing;
+
 -- ---------------------------------------------------------------------------
 -- Airports (from app/Hopp/Networking/MockCatalog.swift)
 -- CI and local reset keep this 31-row baseline. runway_length_ft and fbo_name

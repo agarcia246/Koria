@@ -162,6 +162,7 @@ export function serializeTrip(
   documents: TripDocumentPayload[] = [],
   invoice: TripInvoicePayload | null = null,
   paid = 0,
+  refundAmount = 0,
 ) {
   const prefs = (trip.prefs ?? {}) as Record<string, unknown>;
   const payload: Record<string, unknown> = {
@@ -188,6 +189,9 @@ export function serializeTrip(
   };
   if (trip.status === "awaiting_payment" && invoice) {
     payload.invoice = invoice;
+  }
+  if (trip.status === "cancelled") {
+    payload.refund_amount = refundAmount;
   }
   return payload;
 }
