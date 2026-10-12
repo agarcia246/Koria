@@ -16,7 +16,8 @@ import { sendEmail } from "@/lib/email";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { sendOperatorInvite } from "@/lib/operators/invite";
 import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
-import { recordWirePayment } from "@/lib/payments/record";
+import { recordWirePayment, sumPaidPayments } from "@/lib/payments/record";
+import { depositIsCovered } from "@/lib/payments/deposit";
 import { nextStatusOnQuoteSent } from "@/lib/trips/state";
 import type { PricingMode, AvailabilityKind } from "@/lib/database.types";
 import { parseAvailabilityFile } from "@/lib/availability/parse";
@@ -959,4 +960,49 @@ export async function adminRecordPayment(bookingId: string, formData: FormData) 
 
   revalidatePath("/admin/bookings");
   revalidatePath(`/admin/bookings/${bookingId}`);
+}
+
+export async function adminSetDepositPercent(bookingId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const service = createServiceClient();
+  const { data: profile } = await service.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Admin only");
+
+  const returnPath = `/admin/bookings/${bookingId}`;
+  const percent = Number(formData.get("deposit_percent"));
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+    await assertWrite("bookings", { message: "Deposit percent must be between 0 and 100" }, returnPath);
+  }
+
+  const { data: booking, error: bookingError } = await service
+    .from("bookings")
+    .select("id, customer_total, deposit_received_at")
+    .eq("id", bookingId)
+    .maybeSingle();
+  await assertWrite("bookings", bookingError, returnPath);
+  if (!booking) throw new Error("Booking not found");
+
+  const { data: payments, error: paymentsError } = await service
+    .from("payments")
+    .select("amount, status")
+    .eq("booking_id", bookingId);
+  await assertWrite("payments", paymentsError, returnPath);
+
+  const paid = sumPaidPayments(payments ?? []);
+  const covered = depositIsCovered(Number(booking.customer_total), percent, paid);
+  const { error } = await service
+    .from("bookings")
+    .update({
+      deposit_percent: percent,
+      deposit_received_at: covered ? (booking.deposit_received_at ?? new Date().toISOString()) : null,
+    })
+    .eq("id", bookingId);
+  await assertWrite("bookings", error, returnPath);
+
+  revalidatePath("/admin/bookings");
+  revalidatePath(returnPath);
 }

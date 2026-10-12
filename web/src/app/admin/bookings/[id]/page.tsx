@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { adminRecordPayment } from "@/lib/portal/actions";
+import { adminRecordPayment, adminSetDepositPercent } from "@/lib/portal/actions";
+import { outstandingBalance } from "@/lib/payments/deposit";
 
 export default async function AdminBookingDetailPage({
   params,
@@ -30,9 +31,11 @@ export default async function AdminBookingDetailPage({
   ]);
 
   const record = adminRecordPayment.bind(null, booking.id);
+  const setDeposit = adminSetDepositPercent.bind(null, booking.id);
   const paid = (payments ?? [])
     .filter((payment) => payment.status === "paid")
     .reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+  const outstanding = outstandingBalance(Number(booking.customer_total), paid);
 
   return (
     <div className="max-w-lg">
@@ -49,6 +52,17 @@ export default async function AdminBookingDetailPage({
         <div className="flex justify-between border-b border-silver/30 py-2">
           <dt className="text-warm">Paid</dt>
           <dd className="tabular-nums">${paid.toLocaleString()}</dd>
+        </div>
+        <div className="flex justify-between border-b border-silver/30 py-2">
+          <dt className="text-warm">Outstanding</dt>
+          <dd className="tabular-nums">${outstanding.toLocaleString()}</dd>
+        </div>
+        <div className="flex justify-between border-b border-silver/30 py-2">
+          <dt className="text-warm">Deposit</dt>
+          <dd>
+            {Number(booking.deposit_percent)}%
+            {booking.deposit_received_at ? " · received" : " · not received"}
+          </dd>
         </div>
         {invoice ? (
           <div className="flex justify-between border-b border-silver/30 py-2">
@@ -80,6 +94,27 @@ export default async function AdminBookingDetailPage({
           ))}
         </ul>
       ) : null}
+
+      {booking.status === "pending" && (
+        <form action={setDeposit} className="mt-8 flex items-end gap-3">
+          <label className="block text-xs uppercase tracking-wide text-warm">
+            Deposit percent
+            <input
+              name="deposit_percent"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              defaultValue={Number(booking.deposit_percent)}
+              required
+              className="mt-1 w-28 border border-silver/50 bg-paper px-3 py-2"
+            />
+          </label>
+          <button type="submit" className="border border-ink px-4 py-2 text-sm">
+            Save deposit
+          </button>
+        </form>
+      )}
 
       {booking.status === "pending" && (
         <form action={record} className="mt-8 space-y-3">

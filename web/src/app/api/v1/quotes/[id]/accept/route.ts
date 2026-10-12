@@ -1,5 +1,6 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import { brokerDisclosureTextFromSnapshot } from "@/lib/disclosures";
+import { DEFAULT_DEPOSIT_PERCENT } from "@/lib/payments/deposit";
 import { haversineNm } from "@/lib/geo";
 import { logError } from "@/lib/log";
 import { createInvoiceForBooking } from "@/lib/invoices/create";
@@ -122,6 +123,7 @@ export async function POST(
       taxes_amount: quote.taxes_amount,
       customer_total: quote.customer_total,
       currency: quote.currency,
+      deposit_percent: DEFAULT_DEPOSIT_PERCENT,
       tax_rule_snapshot: quote.tax_rule_snapshot,
       operating_carrier_legal_name:
         (snapshot.legal_name as string) ?? operator?.legal_name ?? null,
