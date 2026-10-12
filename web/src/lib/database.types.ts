@@ -366,6 +366,7 @@ export type Database = {
           icao: string
           id: string
           latitude: number
+          location: unknown
           longitude: number
           name: string
           region: string | null
@@ -1447,6 +1448,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       operator_can_access_trip: { Args: { trip_id: string }; Returns: boolean }
       operator_ids: { Args: never; Returns: string[] }
+      airports_within_nm: {
+        Args: { p_lat: number; p_lng: number; p_nm: number }
+        Returns: Database["public"]["Tables"]["airports"]["Row"][]
+      }
       search_airports: {
         Args: { p_limit?: number; p_q: string }
         Returns: Database["public"]["Tables"]["airports"]["Row"][]

@@ -22,6 +22,9 @@ export type SearchBody = {
   nearby_airports?: boolean;
 };
 
+/** Nearby-airport radius. Passed to airports_within_nm; the search does not read the full table. */
+export const NEARBY_RADIUS_NM = 50;
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -68,18 +71,23 @@ export async function runSearch(
   let destinationIds = [destination.id];
 
   if (body.nearby_airports) {
-    const { data: allAirports } = await client.from("airports").select("*");
-    const nearbyOrigin = (allAirports ?? [])
-      .filter((a) => haversineNm(origin.latitude, origin.longitude, a.latitude, a.longitude) <= 50)
-      .map((a) => a.id);
-    const nearbyDest = (allAirports ?? [])
-      .filter(
-        (a) =>
-          haversineNm(destination.latitude, destination.longitude, a.latitude, a.longitude) <= 50,
-      )
-      .map((a) => a.id);
-    originIds = Array.from(new Set([...originIds, ...nearbyOrigin]));
-    destinationIds = Array.from(new Set([...destinationIds, ...nearbyDest]));
+    const [{ data: nearbyOrigin, error: originError }, { data: nearbyDest, error: destError }] =
+      await Promise.all([
+        client.rpc("airports_within_nm", {
+          p_lat: origin.latitude,
+          p_lng: origin.longitude,
+          p_nm: NEARBY_RADIUS_NM,
+        }),
+        client.rpc("airports_within_nm", {
+          p_lat: destination.latitude,
+          p_lng: destination.longitude,
+          p_nm: NEARBY_RADIUS_NM,
+        }),
+      ]);
+    if (originError) throw new Error(originError.message);
+    if (destError) throw new Error(destError.message);
+    originIds = Array.from(new Set([origin.id, ...(nearbyOrigin ?? []).map((a) => a.id)]));
+    destinationIds = Array.from(new Set([destination.id, ...(nearbyDest ?? []).map((a) => a.id)]));
   }
 
   const distanceNm = haversineNm(
