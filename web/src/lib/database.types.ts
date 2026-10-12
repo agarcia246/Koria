@@ -429,6 +429,7 @@ export type Database = {
           operating_carrier_dba: string | null
           operating_carrier_legal_name: string | null
           operator_amount: number
+          payout_adjustment: number
           platform_fee_amount: number
           quote_id: string
           status: Database["public"]["Enums"]["booking_status"]
@@ -451,6 +452,7 @@ export type Database = {
           operating_carrier_dba?: string | null
           operating_carrier_legal_name?: string | null
           operator_amount: number
+          payout_adjustment?: number
           platform_fee_amount?: number
           quote_id: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -473,6 +475,7 @@ export type Database = {
           operating_carrier_dba?: string | null
           operating_carrier_legal_name?: string | null
           operator_amount?: number
+          payout_adjustment?: number
           platform_fee_amount?: number
           quote_id?: string
           status?: Database["public"]["Enums"]["booking_status"]
@@ -909,6 +912,8 @@ export type Database = {
           currency: string | null
           id: string
           operator_id: string | null
+          reference: string | null
+          sent_at: string | null
           status: string | null
           updated_at: string
         }
@@ -919,6 +924,8 @@ export type Database = {
           currency?: string | null
           id?: string
           operator_id?: string | null
+          reference?: string | null
+          sent_at?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -929,6 +936,8 @@ export type Database = {
           currency?: string | null
           id?: string
           operator_id?: string | null
+          reference?: string | null
+          sent_at?: string | null
           status?: string | null
           updated_at?: string
         }

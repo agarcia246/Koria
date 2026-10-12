@@ -1006,3 +1006,33 @@ export async function adminSetDepositPercent(bookingId: string, formData: FormDa
   revalidatePath("/admin/bookings");
   revalidatePath(returnPath);
 }
+
+export async function adminMarkPayoutSent(payoutId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const service = createServiceClient();
+  const { data: profile } = await service.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Admin only");
+
+  const sentAt = String(formData.get("sent_at") || "");
+  const reference = String(formData.get("reference") || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sentAt) || !reference) {
+    await assertWrite("payouts", { message: "Date and reference are required" }, "/admin/payouts");
+  }
+
+  const { error } = await service
+    .from("payouts")
+    .update({
+      status: "sent",
+      sent_at: `${sentAt}T00:00:00.000Z`,
+      reference,
+    })
+    .eq("id", payoutId)
+    .eq("status", "unpaid");
+  await assertWrite("payouts", error, "/admin/payouts");
+  revalidatePath("/admin/payouts");
+  revalidatePath("/operator/bookings");
+}

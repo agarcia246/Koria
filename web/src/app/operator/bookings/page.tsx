@@ -20,10 +20,17 @@ export default async function BookingsPage() {
     : { data: [] as never[] };
 
   const tripIds = Array.from(new Set((bookings ?? []).map((b) => b.trip_request_id)));
-  const { data: trips } = tripIds.length
-    ? await ctx.supabase.from("trip_requests").select("id, status").in("id", tripIds)
-    : { data: [] as { id: string; status: string }[] };
+  const bookingIds = (bookings ?? []).map((b) => b.id);
+  const [{ data: trips }, { data: payouts }] = await Promise.all([
+    tripIds.length
+      ? ctx.supabase.from("trip_requests").select("id, status").in("id", tripIds)
+      : Promise.resolve({ data: [] as { id: string; status: string }[] }),
+    bookingIds.length
+      ? ctx.supabase.from("payouts").select("booking_id, status").in("booking_id", bookingIds)
+      : Promise.resolve({ data: [] as { booking_id: string | null; status: string | null }[] }),
+  ]);
   const tripStatus = new Map((trips ?? []).map((trip) => [trip.id, trip.status]));
+  const payoutStatus = new Map((payouts ?? []).map((payout) => [payout.booking_id, payout.status]));
 
   return (
     <div>
@@ -35,6 +42,7 @@ export default async function BookingsPage() {
             <th>Trip</th>
             <th>Booking</th>
             <th>Total</th>
+            <th>Payout</th>
             <th>Carrier</th>
             <th>Document</th>
           </tr>
@@ -46,6 +54,7 @@ export default async function BookingsPage() {
               <td>{tripStatus.get(b.trip_request_id) ?? "—"}</td>
               <td>{b.status}</td>
               <td className="tabular-nums">${Number(b.customer_total).toLocaleString()}</td>
+              <td>{payoutStatus.get(b.id) ?? "—"}</td>
               <td>{b.operating_carrier_dba ?? b.operating_carrier_legal_name}</td>
               <td>
                 <form action={uploadTripDocument.bind(null, b.trip_request_id)} className="flex flex-wrap items-center gap-2">
