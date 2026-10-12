@@ -2,6 +2,7 @@ import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
 import type { Json } from "@/lib/database.types";
 import { logError } from "@/lib/log";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { sameOperatorIds, searchOperatorIds } from "@/lib/search";
 import { eligibleOperatorIds } from "@/lib/trips/fanout";
 import { loadTripPayload } from "@/lib/trips/load";
 
@@ -70,6 +71,28 @@ export async function POST(request: Request) {
     aircraftId,
   });
   if ("error" in eligible) return error(eligible.error);
+
+  // Fan-out and search share the coarse SQL filter plus isAircraftEligible.
+  // A pinned aircraft is a subset on purpose, so the check is only for an open request.
+  if (!aircraftId) {
+    const searched = await searchOperatorIds(auth.supabase, {
+      origin_id: originId,
+      destination_id: destinationId,
+      departure_date: String(body.departure_date),
+      passengers: Number(body.passengers),
+      pets: prefs.pets,
+      wifi_preferred: prefs.wifi_preferred,
+      golf: prefs.golf,
+      skis: prefs.skis,
+      baggage: prefs.baggage,
+      nearby_airports: false,
+    });
+    if (!sameOperatorIds(eligible.operatorIds, searched)) {
+      logError("fanout_search_mismatch", {
+        message: `fan-out operators (${eligible.operatorIds.length}) differ from search operators (${searched.length})`,
+      });
+    }
+  }
 
   const { data: trip, error: insertError } = await auth.supabase.rpc("create_trip_with_fanout", {
     p_customer_id: auth.userId,

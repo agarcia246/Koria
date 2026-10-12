@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, TripStatus } from "@/lib/database.types";
+import { applyCoarseAircraftFilters, applyVerifiedOperatorFilter } from "@/lib/aircraft-filters";
 import { isAircraftEligible, type EligibilityRequest } from "@/lib/eligibility";
 import { haversineNm } from "@/lib/geo";
 import { nextStatusOnOperatorDecline } from "@/lib/trips/state";
@@ -38,10 +39,17 @@ export async function eligibleOperatorIds(
     destination.longitude,
   );
 
-  let aircraftQuery = client.from("aircraft").select("*");
+  let aircraftQuery = applyVerifiedOperatorFilter(client.from("aircraft").select("*"));
   aircraftQuery = input.aircraftId
     ? aircraftQuery.eq("id", input.aircraftId)
-    : aircraftQuery.eq("is_active", true);
+    : applyCoarseAircraftFilters(aircraftQuery, {
+        passengers: input.passengers,
+        pets: input.prefs.pets,
+        wifi_preferred: input.prefs.wifi_preferred,
+        golf: input.prefs.golf,
+        skis: input.prefs.skis,
+        baggage: input.prefs.baggage,
+      });
 
   const { data: aircraftRows, error: aircraftError } = await aircraftQuery;
   if (aircraftError) return { error: aircraftError.message };

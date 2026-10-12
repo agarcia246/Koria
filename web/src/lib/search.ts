@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables } from "@/lib/database.types";
+import { applyCoarseAircraftFilters, applyVerifiedOperatorFilter } from "@/lib/aircraft-filters";
 import { isAircraftEligible } from "@/lib/eligibility";
 import { haversineNm } from "@/lib/geo";
 import { computeOperatorAmount } from "@/lib/pricing";
@@ -20,7 +21,17 @@ export type SearchBody = {
   baggage?: boolean;
   flexible_days?: number;
   nearby_airports?: boolean;
+  /** 1-based. Omitted means the first page. iOS does not send this. */
+  page?: number;
+  /** Defaults to SEARCH_PAGE_SIZE. Capped at SEARCH_PAGE_SIZE_MAX. */
+  page_size?: number;
 };
+
+/** First page is large enough to hold the seeded demo fleet, so that set is unsplit. */
+export const SEARCH_PAGE_SIZE = 20;
+export const SEARCH_PAGE_SIZE_MAX = 50;
+
+const EMPTY_ID = "00000000-0000-0000-0000-000000000000";
 
 /** Nearby-airport radius. Passed to airports_within_nm; the search does not read the full table. */
 export const NEARBY_RADIUS_NM = 50;
@@ -97,12 +108,7 @@ export async function runSearch(
     destination.longitude,
   );
 
-  const { data: aircraftRows } = await client
-    .from("aircraft")
-    .select("*")
-    .eq("is_active", true);
-
-  const aircraft = aircraftRows ?? [];
+  const aircraft = await loadAircraftPage(client, body, "page");
   const modelIds = Array.from(new Set(aircraft.map((a) => a.model_id)));
   const operatorIds = Array.from(new Set(aircraft.map((a) => a.operator_id)));
   const aircraftIds = aircraft.map((a) => a.id);
@@ -255,7 +261,8 @@ export async function runSearch(
     });
   }
 
-  // Rank tags
+  // Rank tags apply to this page only, after the SQL coarse filter and
+  // isAircraftEligible (range and blocked windows). They are not catalog-wide.
   if (results.length) {
     const priced = results.filter((r) => r.price.amount != null);
     if (priced.length) {
@@ -294,6 +301,89 @@ export async function runSearch(
   });
 
   return cleaned;
+}
+
+/**
+ * Operators a search would return for this request, before pagination.
+ * Trip creation compares this set to fan-out. It does not insert a searches row.
+ */
+export async function searchOperatorIds(client: Client, body: SearchBody): Promise<string[]> {
+  const origin = await loadAirport(client, body.origin_id);
+  const destination = await loadAirport(client, body.destination_id);
+  if (!origin || !destination) return [];
+
+  const distanceNm = haversineNm(
+    origin.latitude,
+    origin.longitude,
+    destination.latitude,
+    destination.longitude,
+  );
+  const aircraft = await loadAircraftPage(client, body, "all");
+  const modelIds = Array.from(new Set(aircraft.map((row) => row.model_id)));
+  const aircraftIds = aircraft.map((row) => row.id);
+  const [{ data: models }, { data: blocks }] = await Promise.all([
+    client
+      .from("aircraft_models")
+      .select("id, range_nm")
+      .in("id", modelIds.length ? modelIds : [EMPTY_ID]),
+    client
+      .from("aircraft_availability")
+      .select("aircraft_id, starts_at, ends_at")
+      .eq("kind", "blocked")
+      .in("aircraft_id", aircraftIds.length ? aircraftIds : [EMPTY_ID]),
+  ]);
+  const rangeByModel = new Map((models ?? []).map((model) => [model.id, model.range_nm]));
+  const operators = new Set<string>();
+  for (const row of aircraft) {
+    const rangeNm = rangeByModel.get(row.model_id);
+    if (rangeNm == null) continue;
+    if (
+      !isAircraftEligible({
+        aircraft: row,
+        rangeNm,
+        blocks: blocks ?? [],
+        request: {
+          passengers: body.passengers,
+          pets: body.pets,
+          wifi_preferred: body.wifi_preferred,
+          golf: body.golf,
+          skis: body.skis,
+          baggage: body.baggage,
+          departAt: new Date(body.departure_date),
+          distanceNm,
+        },
+      })
+    ) {
+      continue;
+    }
+    operators.add(row.operator_id);
+  }
+  return Array.from(operators);
+}
+
+export function sameOperatorIds(left: string[], right: string[]): boolean {
+  const a = new Set(left);
+  const b = new Set(right);
+  if (a.size !== b.size) return false;
+  for (const id of a) if (!b.has(id)) return false;
+  return true;
+}
+
+async function loadAircraftPage(client: Client, body: SearchBody, scope: "page" | "all") {
+  let query = applyVerifiedOperatorFilter(client.from("aircraft").select("*"));
+  query = applyCoarseAircraftFilters(query, body).order("tail_number", { ascending: true });
+  if (scope === "page") {
+    const size = Math.min(
+      SEARCH_PAGE_SIZE_MAX,
+      Math.max(1, body.page_size ?? SEARCH_PAGE_SIZE),
+    );
+    const page = Math.max(1, body.page ?? 1);
+    const from = (page - 1) * size;
+    query = query.range(from, from + size - 1);
+  }
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 function describeTradeoff(args: {
