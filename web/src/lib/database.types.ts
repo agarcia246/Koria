@@ -36,11 +36,14 @@ export type Database = {
     Tables: {
       access_requests: {
         Row: {
+          certificate_number: string | null
+          company_name: string | null
           created_at: string
           decision_note: string | null
           email: string
           id: string
           invite_code: string | null
+          kind: Database["public"]["Enums"]["access_request_kind"]
           note: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["access_status"]
@@ -48,11 +51,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          certificate_number?: string | null
+          company_name?: string | null
           created_at?: string
           decision_note?: string | null
           email: string
           id?: string
           invite_code?: string | null
+          kind?: Database["public"]["Enums"]["access_request_kind"]
           note?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["access_status"]
@@ -60,11 +66,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          certificate_number?: string | null
+          company_name?: string | null
           created_at?: string
           decision_note?: string | null
           email?: string
           id?: string
           invite_code?: string | null
+          kind?: Database["public"]["Enums"]["access_request_kind"]
           note?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["access_status"]
@@ -1744,6 +1753,7 @@ export type Database = {
       }
     }
     Enums: {
+      access_request_kind: "customer" | "operator"
       access_status: "requested" | "approved" | "declined" | "invited"
       aircraft_category:
         | "very_light"
@@ -1904,6 +1914,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      access_request_kind: ["customer", "operator"],
       access_status: ["requested", "approved", "declined", "invited"],
       aircraft_category: [
         "very_light",

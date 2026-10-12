@@ -30,6 +30,9 @@ type AccessBody = {
   email?: string;
   note?: string;
   company_website?: string;
+  kind?: "customer" | "operator";
+  company_name?: string;
+  certificate_number?: string;
 };
 
 function corsHeaders(request: Request): Record<string, string> {
@@ -90,6 +93,10 @@ async function readBody(request: Request): Promise<AccessBody> {
       email: typeof record.email === "string" ? record.email.trim().toLowerCase() : undefined,
       note: typeof record.note === "string" ? record.note.trim().slice(0, 2000) : undefined,
       company_website: typeof record.company_website === "string" ? record.company_website : undefined,
+      kind: record.kind === "operator" ? "operator" : "customer",
+      company_name: typeof record.company_name === "string" ? record.company_name.trim().slice(0, 200) : undefined,
+      certificate_number:
+        typeof record.certificate_number === "string" ? record.certificate_number.trim().slice(0, 80) : undefined,
     };
   } catch {
     return {};
@@ -150,6 +157,77 @@ async function authenticatedRequest(request: Request) {
 }
 
 /**
+ * Operator applications stay off the customer profile. user_id is left null
+ * so approval cannot flip customer access. Signup ignores kind = operator.
+ */
+async function operatorApplication(request: Request, body: AccessBody) {
+  const email = body.email ?? "";
+  const companyName = body.company_name ?? "";
+  const certificateNumber = body.certificate_number ?? "";
+  if (!companyName) return apiError("Company required", 400);
+  if (!certificateNumber) return apiError("Certificate number required", 400);
+  if (!validEmail(email)) return apiError("Email required", 400);
+  if (ipLimited(clientIp(request))) return apiError("Try again later", 429);
+
+  const service = createServiceClient();
+  const since = new Date(Date.now() - WINDOW_MS).toISOString();
+  const { count, error: countError } = await service
+    .from("access_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("email", email)
+    .gte("created_at", since);
+  if (countError) {
+    logError("supabase_write_failed", { table: "access_requests", message: countError.message });
+    return apiError("Could not save the request", 500);
+  }
+
+  const { data: open, error: openError } = await service
+    .from("access_requests")
+    .select("id")
+    .eq("email", email)
+    .eq("status", "requested")
+    .eq("kind", "operator")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (openError) {
+    logError("supabase_write_failed", { table: "access_requests", message: openError.message });
+    return apiError("Could not save the request", 500);
+  }
+  if (open) {
+    const { error: updateError } = await service
+      .from("access_requests")
+      .update({
+        company_name: companyName,
+        certificate_number: certificateNumber,
+        note: body.note || null,
+      })
+      .eq("id", open.id);
+    if (updateError) {
+      logError("supabase_write_failed", { table: "access_requests", message: updateError.message });
+      return apiError("Could not save the request", 500);
+    }
+    return json({ access_status: "requested" });
+  }
+
+  if ((count ?? 0) >= EMAIL_LIMIT) return apiError("Try again later", 429);
+
+  const { error: insertError } = await service.from("access_requests").insert({
+    email,
+    kind: "operator",
+    company_name: companyName,
+    certificate_number: certificateNumber,
+    note: body.note || null,
+    status: "requested",
+  });
+  if (insertError) {
+    logError("supabase_write_failed", { table: "access_requests", message: insertError.message });
+    return apiError("Could not save the request", 500);
+  }
+  return json({ access_status: "requested" });
+}
+
+/**
  * The site has no service-role key. This route writes access_requests with
  * the service role and does not create an auth user. Signup later attaches
  * the row. A filled honeypot is discarded. The response does not say whether
@@ -161,6 +239,7 @@ async function anonymousRequest(request: Request) {
     ipLimited(clientIp(request));
     return json({ access_status: "requested" });
   }
+  if (body.kind === "operator") return operatorApplication(request, body);
 
   const email = body.email ?? "";
   const name = body.name ?? "";
@@ -198,6 +277,7 @@ async function anonymousRequest(request: Request) {
     .select("id, note, user_id")
     .eq("email", email)
     .eq("status", "requested")
+    .eq("kind", "customer")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
