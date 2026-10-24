@@ -1,30 +1,16 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRef } from "react";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { START_KORIA_HREF } from "@/lib/constants";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
-import { useIsTouch } from "@/hooks/useIsTouch";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
-import type { SceneState } from "@/components/three/AircraftScene";
-
-const AircraftScene = dynamic(
-  () =>
-    import("@/components/three/AircraftScene").then((m) => m.AircraftScene),
-  { ssr: false },
-);
 
 export function Hero() {
   const section = useRef<HTMLElement>(null);
   const type = useRef<HTMLDivElement>(null);
-  const desktop = useIsDesktop();
-  const touch = useIsTouch();
   const reduce = usePrefersReducedMotion();
-  const state = useRef<SceneState>({ progress: 0, mouseX: 0, mouseY: 0 });
-  const showScene = desktop && !touch && !reduce;
 
   useGSAP(
     () => {
@@ -69,9 +55,6 @@ export function Hero() {
             start: "top top",
             end: "bottom top",
             scrub: 0.7,
-            onUpdate: (self) => {
-              state.current.progress = self.progress;
-            },
           },
         },
       );
@@ -84,35 +67,21 @@ export function Hero() {
     { scope: section },
   );
 
-  const onMouse = (event: React.MouseEvent) => {
-    if (!showScene) return;
-    const x = (event.clientX / window.innerWidth) * 2 - 1;
-    const y = -(event.clientY / window.innerHeight) * 2 + 1;
-    state.current.mouseX = x;
-    state.current.mouseY = y;
-  };
-
   return (
     <section
       id="top"
       ref={section}
-      onMouseMove={onMouse}
       className="relative h-[145vh] bg-ink"
     >
       <div className="sticky top-0 h-screen overflow-hidden">
         <Image
-          src="/images/aircraft-clouds.png"
-          alt="Private aircraft moving through layered clouds"
+          src="/images/hero-atmosphere.png"
+          alt="Sunlit clouds above the horizon"
           fill
           priority
           sizes="100vw"
           className="object-cover"
         />
-        {showScene && (
-          <div className="pointer-events-none absolute inset-0">
-            <AircraftScene state={state} />
-          </div>
-        )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink via-ink/35 to-ink/25" />
 
         <div
