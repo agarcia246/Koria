@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KoriaMark } from "@/components/ui/KoriaMark";
-import { CONTACT_HREF, INSTAGRAM_HREF, NAV_LINKS } from "@/lib/constants";
+import { OperatorApplication } from "@/components/access/OperatorApplication";
+import { APP_STORE_URL, CONTACT_HREF, INSTAGRAM_HREF, NAV_LINKS } from "@/lib/constants";
 
 export function Footer() {
   return (
@@ -14,6 +15,14 @@ export function Footer() {
           <p className="mt-6 max-w-xs text-sm leading-relaxed text-silver">
             Private travel, simplified.
           </p>
+          {APP_STORE_URL ? (
+            <a
+              href={APP_STORE_URL}
+              className="mt-6 inline-flex border border-ivory/25 px-4 py-2 text-[0.62rem] tracking-[0.22em] uppercase"
+            >
+              App Store
+            </a>
+          ) : null}
         </div>
 
         <div className="grid gap-10 sm:grid-cols-3 md:col-span-7">
@@ -39,6 +48,9 @@ export function Footer() {
               </li>
               <li>
                 <a href={CONTACT_HREF}>Contact</a>
+              </li>
+              <li>
+                <OperatorApplication className="transition-colors hover:text-ivory" />
               </li>
             </ul>
           </div>

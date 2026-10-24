@@ -55,6 +55,8 @@ jobs:
         run: npm run build
         env:
           PAGES_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
+          NEXT_PUBLIC_KORIA_API_URL: ${{ vars.NEXT_PUBLIC_KORIA_API_URL }}
+          NEXT_PUBLIC_APP_STORE_URL: ${{ vars.NEXT_PUBLIC_APP_STORE_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

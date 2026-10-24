@@ -3,7 +3,8 @@
 import { useRef } from "react";
 import Image from "next/image";
 import { MagneticButton } from "@/components/ui/MagneticButton";
-import { CONTACT_HREF, START_KORIA_HREF } from "@/lib/constants";
+import { RequestAccess } from "@/components/access/RequestAccess";
+import { CONTACT_HREF } from "@/lib/constants";
 import { gsap, useGSAP } from "@/lib/gsap";
 
 export function FinalCTA() {
@@ -66,7 +67,7 @@ export function FinalCTA() {
           We&apos;ll take care of the rest.
         </p>
         <div className="mt-12 flex flex-wrap gap-4">
-          <MagneticButton href={START_KORIA_HREF}>Start a Koria →</MagneticButton>
+          <RequestAccess>Start a Koria →</RequestAccess>
           <MagneticButton href={CONTACT_HREF} variant="ghost" cursor="VIEW">
             Talk to us
           </MagneticButton>

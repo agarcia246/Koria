@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { useRef } from "react";
+import { RequestAccess } from "@/components/access/RequestAccess";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { gsap, useGSAP } from "@/lib/gsap";
-import { START_KORIA_HREF } from "@/lib/constants";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 
 export function Hero() {
@@ -109,7 +109,7 @@ export function Hero() {
             data-hero-cta
             className="pointer-events-auto mt-10 flex flex-wrap gap-4"
           >
-            <MagneticButton href={START_KORIA_HREF}>Start a Koria →</MagneticButton>
+            <RequestAccess>Start a Koria →</RequestAccess>
             <MagneticButton href="#how-it-works" variant="ghost" cursor="EXPLORE">
               Discover Koria
             </MagneticButton>
