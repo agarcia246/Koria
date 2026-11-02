@@ -6,6 +6,8 @@ import { confirmTripAfterPayment } from "@/lib/trips/confirm";
 
 type Client = SupabaseClient<Database>;
 
+const UNIQUE_VIOLATION = "23505";
+
 export function money(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -66,6 +68,15 @@ export async function recordWirePayment(
     .select("id")
     .single();
   if (insertError || !payment) {
+    // payments_one_per_ref (0036). adminRecordPayment passes this message to
+    // assertWrite, which flashes it on the booking page.
+    if (insertError?.code === UNIQUE_VIOLATION) {
+      return {
+        ok: false,
+        table: "payments",
+        message: "This wire reference is already recorded on this booking",
+      };
+    }
     const message = insertError?.message ?? "Payment insert failed";
     logError("supabase_write_failed", { table: "payments", message });
     return { ok: false, table: "payments", message };
