@@ -77,3 +77,6 @@ jobs:
             echo "::error title=migration reset::$(tail -n 40 /tmp/reset.log | tr '\n' ' ' | cut -c1-800)"
             exit "$code"
           fi
+
+      - name: SQL tests
+        run: supabase test db

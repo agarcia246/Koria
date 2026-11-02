@@ -35,7 +35,7 @@ export async function createCustomer(client: Client): Promise<{ id: string; emai
 
 export async function createOperator(
   client: Client,
-  opts: { defaultFeeBps?: number | null } = {},
+  opts: { defaultFeeBps?: number | null; verified?: boolean } = {},
 ): Promise<{ id: string }> {
   const code = `K73${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`.toUpperCase();
   const row = unwrap(
@@ -48,6 +48,52 @@ export async function createOperator(
         legal_name: "KOR-73 Test Air LLC",
         certificate_number: `CERT-${code}`,
         default_fee_bps: opts.defaultFeeBps ?? null,
+        ...(opts.verified ? { verified_at: new Date().toISOString() } : {}),
+      })
+      .select("id")
+      .single(),
+  );
+  return { id: row.id };
+}
+
+export async function createAircraftModel(
+  client: Client,
+  opts: { rangeNm: number; name?: string },
+): Promise<{ id: string }> {
+  const row = unwrap(
+    "aircraft_models",
+    await client
+      .from("aircraft_models")
+      .insert({
+        manufacturer: "KORIA Test",
+        name: opts.name ?? `KOR-74 range ${opts.rangeNm}`,
+        category: "light",
+        range_nm: opts.rangeNm,
+        cruise_speed_ktas: 400,
+        typical_pax: 4,
+        max_pax: 6,
+      })
+      .select("id")
+      .single(),
+  );
+  return { id: row.id };
+}
+
+export async function createAircraft(
+  client: Client,
+  opts: { operatorId: string; modelId: string; isActive?: boolean; seating?: number },
+): Promise<{ id: string }> {
+  const tail = `N${crypto.randomUUID().replace(/-/g, "").slice(0, 5).toUpperCase()}`;
+  const row = unwrap(
+    "aircraft",
+    await client
+      .from("aircraft")
+      .insert({
+        operator_id: opts.operatorId,
+        model_id: opts.modelId,
+        tail_number: tail,
+        seating: opts.seating ?? 6,
+        is_active: opts.isActive ?? true,
       })
       .select("id")
       .single(),
