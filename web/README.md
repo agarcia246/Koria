@@ -1,36 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KORIA web portal
 
-## Getting Started
+Operator and admin portal for the KORIA private-aviation charter marketplace. Customers request trips in the iOS app; this Next.js app is where operators quote and where invoices, payouts, and admin oversight run.
 
-First, run the development server:
+## Run locally
 
 ```bash
+cp .env.local.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Leave `RESEND_API_KEY` and `EMAIL_FROM` unset locally; mail is skipped. Bank details and the public site origin are not required outside production.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set these on the host. Do not commit the values.
 
-## Learn More
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key.
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only service role key.
+- `NEXT_PUBLIC_SITE_URL=https://app.koria.travel` — public origin used in operator emails and invite links.
+- `RESEND_API_KEY` — Resend API key for transactional mail.
+- `EMAIL_FROM` — from address, `KORIA <notifications@notify.koria.travel>`.
+- `KORIA_BANK_DETAILS_JSON` — JSON object of wire instructions printed on the invoice.
+- `SENTRY_DSN` — Sentry DSN. Server-side; reporting stays off when unset.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The server refuses to start when `NODE_ENV=production` and any of `RESEND_API_KEY`, `EMAIL_FROM`, `KORIA_BANK_DETAILS_JSON`, `NEXT_PUBLIC_SITE_URL`, or `SUPABASE_SERVICE_ROLE_KEY` is missing, or when `KORIA_BANK_DETAILS_JSON` is not a JSON object. The check runs at process start on the Node.js runtime, not during `next build` and not on the edge runtime. Set `KORIA_ALLOW_NO_EMAIL=1` on a staging host to skip only the `RESEND_API_KEY` and `EMAIL_FROM` requirement.
