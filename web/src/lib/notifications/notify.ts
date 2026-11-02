@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { renderTemplate, sendEmail, type EmailAttachment, type EmailTemplate, type EmailTemplateData } from "@/lib/email";
 import { logError, logInfo } from "@/lib/log";
+import { siteUrl } from "@/lib/site-url";
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { NotifyEvent, NotifyInput, NotifyPayloadMap, Recipient } from "@/lib/notifications/types";
 
@@ -403,6 +404,5 @@ function money(amount: number, currency: string): string {
 }
 
 function portalTripUrl(tripId: string): string {
-  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  return `${base}/operator/requests/${tripId}`;
+  return `${siteUrl()}/operator/requests/${tripId}`;
 }

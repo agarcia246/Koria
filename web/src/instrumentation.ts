@@ -1,9 +1,18 @@
 import * as Sentry from "@sentry/nextjs";
 import type { Instrumentation } from "next";
+import { assertProductionEnv } from "@/lib/env-guard";
 import { logError } from "@/lib/log";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    try {
+      assertProductionEnv();
+    } catch (error) {
+      // Next.js turns a throw from register() into an unhandledRejection and
+      // leaves the process running, so a missing variable would not fail startup.
+      console.error(error);
+      process.exit(1);
+    }
     await import("./sentry.server.config");
   }
 }
