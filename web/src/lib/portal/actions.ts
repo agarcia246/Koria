@@ -596,7 +596,9 @@ export async function acceptPrice(tripId: string) {
 
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
-    const { error: statusError } = await ctx.supabase
+    // trip_requests.status is server-owned (0034). The operator session
+    // selected the trip above; the service role writes the transition.
+    const { error: statusError } = await createServiceClient()
       .from("trip_requests")
       .update({ status: next })
       .eq("id", tripId);
@@ -694,16 +696,23 @@ export async function sendQuote(tripId: string, formData: FormData) {
   await assertWrite("trip_request_operators", fanoutError, `/operator/requests/${tripId}`);
 
   if (isCounter && parentQuoteId) {
-    const { error: counterError } = await ctx.supabase
+    // status is server-owned. The operator session inserted the new quote;
+    // the service role marks the parent countered, and only when that parent
+    // belongs to this operator on this trip (the service role bypasses RLS).
+    const { error: counterError } = await createServiceClient()
       .from("quotes")
       .update({ status: "countered" })
-      .eq("id", parentQuoteId);
+      .eq("id", parentQuoteId)
+      .eq("trip_request_id", tripId)
+      .eq("operator_id", ctx.operatorId);
     await assertWrite("quotes", counterError, `/operator/requests/${tripId}`);
   }
 
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
-    const { error: statusError } = await ctx.supabase
+    // trip_requests.status is server-owned (0034). The operator session
+    // selected the trip above; the service role writes the transition.
+    const { error: statusError } = await createServiceClient()
       .from("trip_requests")
       .update({ status: next })
       .eq("id", tripId);
