@@ -596,7 +596,9 @@ export async function acceptPrice(tripId: string) {
 
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
-    const { error: statusError } = await ctx.supabase
+    // trip_requests.status is server-owned (0034). The operator session
+    // selected the trip above; the service role writes the transition.
+    const { error: statusError } = await createServiceClient()
       .from("trip_requests")
       .update({ status: next })
       .eq("id", tripId);
@@ -708,7 +710,9 @@ export async function sendQuote(tripId: string, formData: FormData) {
 
   const next = nextStatusOnQuoteSent(trip.status);
   if (next !== trip.status) {
-    const { error: statusError } = await ctx.supabase
+    // trip_requests.status is server-owned (0034). The operator session
+    // selected the trip above; the service role writes the transition.
+    const { error: statusError } = await createServiceClient()
       .from("trip_requests")
       .update({ status: next })
       .eq("id", tripId);
