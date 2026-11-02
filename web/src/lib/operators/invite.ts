@@ -1,5 +1,6 @@
 import { sendEmail } from "@/lib/email";
 import { logError } from "@/lib/log";
+import { siteUrl } from "@/lib/site-url";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 export type OperatorInviteRole = "admin" | "member";
@@ -66,10 +67,6 @@ async function createMagicLink(email: string): Promise<string | null> {
     return null;
   }
   return link;
-}
-
-function siteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
 function redact(message: string): string {
