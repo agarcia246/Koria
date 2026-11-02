@@ -35,19 +35,31 @@ function firstSet(names: readonly string[]): string | null {
 
 let reachability: Promise<boolean> | null = null;
 
+async function probe(url: string): Promise<"ok" | "down" | "starting"> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2000);
+  try {
+    const res = await fetch(new URL("/auth/v1/health", url), { signal: ctrl.signal });
+    // Right after `supabase db reset` the gateway answers before GoTrue has
+    // restarted (502 "invalid response from upstream"). Treat that as starting.
+    return res.ok ? "ok" : "starting";
+  } catch {
+    return "down";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function apiReachable(url: string): Promise<boolean> {
   if (!reachability) {
     reachability = (async () => {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 2000);
-      try {
-        await fetch(new URL("/auth/v1/health", url), { signal: ctrl.signal });
-        return true;
-      } catch {
-        return false;
-      } finally {
-        clearTimeout(timer);
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const state = await probe(url);
+        if (state === "ok") return true;
+        if (state === "down") return false;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
+      return false;
     })();
   }
   return reachability;

@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { describe, expect, it } from "vitest";
+import { describe, expect } from "vitest";
 import type { Database } from "@/lib/database.types";
 import { recordWirePayment } from "@/lib/payments/record";
-import { dbTest, openServiceClient } from "@/test/db";
+import { dbTest } from "@/test/db";
 import { createMoneyBooking } from "@/test/fixtures";
 
 type Client = SupabaseClient<Database>;
@@ -140,13 +140,10 @@ describe("recordWirePayment against the local ledger", () => {
     expect(state.trip.status).toBe("awaiting_payment");
   });
 
-  // KOR-71 adds unique index payments_one_per_ref on (booking_id, provider_ref)
-  // where status = 'paid' and provider_ref is not null. That index is not on
-  // this branch. Enable this test after KOR-71 merges. Today the second insert
-  // succeeds and the ledger moves.
-  it.skip("rejects the same provider_ref twice and leaves the ledger unchanged (KOR-71 payments_one_per_ref)", async () => {
-    const client = await openServiceClient();
-    if (!client) throw new Error("local Supabase is required once this test is enabled");
+  // KOR-71 (0036) adds unique index payments_one_per_ref on
+  // (booking_id, provider_ref) where status = 'paid' and provider_ref is not
+  // null. recordWirePayment maps the 23505 to a clear message.
+  dbTest("rejects the same provider_ref twice and leaves the ledger unchanged (KOR-71 payments_one_per_ref)", async (client) => {
     const fx = await createMoneyBooking(client, { customerTotal: 100_000, depositPercent: 50 });
     const first = await recordWirePayment(client, {
       bookingId: fx.bookingId,
