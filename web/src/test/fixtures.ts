@@ -1,11 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, BookingStatus, TripStatus } from "@/lib/database.types";
+import type { Database, BookingStatus, Json, TripStatus } from "@/lib/database.types";
 
 type Client = SupabaseClient<Database>;
 
 export const SEEDED_ORIGIN_ID = "11111111-1111-1111-1111-111111110001";
 export const SEEDED_DESTINATION_ID = "11111111-1111-1111-1111-111111110004";
 export const SEEDED_MODEL_ID = "22222222-2222-2222-2222-222222220001";
+
+/** Password passed to auth.admin.createUser by the fixture builders. */
+export const FIXTURE_PASSWORD = "Koria-test-73-password";
 
 function unwrap<T extends { data: unknown; error: { message: string } | null }>(
   label: string,
@@ -21,7 +24,7 @@ export async function createCustomer(client: Client): Promise<{ id: string; emai
   const email = `kor73-${crypto.randomUUID()}@koria.test`;
   const created = await client.auth.admin.createUser({
     email,
-    password: "Koria-test-73-password",
+    password: FIXTURE_PASSWORD,
     email_confirm: true,
   });
   if (created.error || !created.data.user) {
@@ -177,5 +180,138 @@ export async function createMoneyBooking(
     quoteId: quote.id,
     bookingId: booking.id,
     invoiceId,
+  };
+}
+
+export type PendingQuote = {
+  id: string;
+  operatorId: string;
+  aircraftId: string;
+  operatorAmount: number;
+  platformFeeAmount: number;
+  taxesAmount: number;
+  customerTotal: number;
+  taxRuleSnapshot: Json;
+  brokerRoleDisclosure: string;
+};
+
+export type QuoteReceivedTrip = {
+  customerId: string;
+  email: string;
+  password: string;
+  tripId: string;
+  quotes: PendingQuote[];
+};
+
+/**
+ * Approved customer, trip in quote_received, and two or more pending quotes.
+ * No booking. Each quote has its own operator and aircraft and distinct money.
+ */
+export async function createQuoteReceivedTrip(
+  client: Client,
+  opts: { quoteCount?: number; validUntil?: string | null; fbo?: string | null } = {},
+): Promise<QuoteReceivedTrip> {
+  const quoteCount = opts.quoteCount ?? 2;
+  const validUntil =
+    opts.validUntil === undefined
+      ? new Date(Date.now() + 48 * 3_600_000).toISOString()
+      : opts.validUntil;
+  const customer = await createCustomer(client);
+  const approved = await client
+    .from("profiles")
+    .update({ access_status: "approved" })
+    .eq("id", customer.id);
+  if (approved.error) throw new Error(`approve profile: ${approved.error.message}`);
+
+  const trip = unwrap(
+    "trip_requests",
+    await client
+      .from("trip_requests")
+      .insert({
+        customer_id: customer.id,
+        origin_id: SEEDED_ORIGIN_ID,
+        destination_id: SEEDED_DESTINATION_ID,
+        depart_at: new Date(Date.now() + 30 * 24 * 3_600_000).toISOString(),
+        passengers: 4,
+        status: "quote_received",
+        fbo: opts.fbo === undefined ? "KOR-72 FBO" : opts.fbo,
+      })
+      .select("id")
+      .single(),
+  );
+
+  const quotes: PendingQuote[] = [];
+  for (let index = 0; index < quoteCount; index++) {
+    const operator = await createOperator(client);
+    const tail = `N${crypto.randomUUID().replace(/-/g, "").slice(0, 5).toUpperCase()}`;
+    const aircraft = unwrap(
+      "aircraft",
+      await client
+        .from("aircraft")
+        .insert({
+          operator_id: operator.id,
+          model_id: SEEDED_MODEL_ID,
+          tail_number: tail,
+          seating: 6,
+        })
+        .select("id")
+        .single(),
+    );
+    const operatorAmount = 80_000 + index * 10_000;
+    const platformFeeAmount = 4_000 + index * 500;
+    const taxesAmount = 1_250 + index * 25;
+    const customerTotal = operatorAmount + platformFeeAmount + taxesAmount;
+    const taxRuleSnapshot: Json = {
+      version: "kor-72",
+      quote_index: index,
+      rate: 0.07 + index / 100,
+    };
+    const brokerRoleDisclosure = `KOR-72 broker disclosure ${index}`;
+    const quote = unwrap(
+      "quotes",
+      await client
+        .from("quotes")
+        .insert({
+          trip_request_id: trip.id,
+          operator_id: operator.id,
+          aircraft_id: aircraft.id,
+          operator_amount: operatorAmount,
+          platform_fee_amount: platformFeeAmount,
+          taxes_amount: taxesAmount,
+          customer_total: customerTotal,
+          currency: "USD",
+          status: "pending",
+          pricing_mode: "estimated",
+          valid_until: validUntil,
+          tax_rule_snapshot: taxRuleSnapshot,
+          carrier_disclosure_snapshot: {
+            legal_name: `KOR-72 Carrier ${index} LLC`,
+            dba: `KOR-72 Carrier ${index}`,
+            certificate_number: `CERT-KOR72-${index}`,
+            broker_role_disclosure: brokerRoleDisclosure,
+          },
+        })
+        .select("id")
+        .single(),
+    );
+    quotes.push({
+      id: quote.id,
+      operatorId: operator.id,
+      aircraftId: aircraft.id,
+      operatorAmount,
+      platformFeeAmount,
+      taxesAmount,
+      customerTotal,
+      taxRuleSnapshot,
+      brokerRoleDisclosure,
+    });
+  }
+
+  return {
+    customerId: customer.id,
+    email: customer.email,
+    password: FIXTURE_PASSWORD,
+    tripId: trip.id,
+    quotes,
   };
 }

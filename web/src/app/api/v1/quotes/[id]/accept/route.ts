@@ -1,13 +1,16 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
+import type { TripStatus } from "@/lib/database.types";
 import { brokerDisclosureTextFromSnapshot } from "@/lib/disclosures";
-import { DEFAULT_DEPOSIT_PERCENT } from "@/lib/payments/deposit";
 import { haversineNm } from "@/lib/geo";
-import { logError } from "@/lib/log";
 import { createInvoiceForBooking } from "@/lib/invoices/create";
+import { logError } from "@/lib/log";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { DEFAULT_DEPOSIT_PERCENT } from "@/lib/payments/deposit";
 import { pricedBlockMinutes } from "@/lib/pricing";
 import { loadTripPayload } from "@/lib/trips/load";
 import { nextStatusOnCustomerAccept } from "@/lib/trips/state";
+
+const UNIQUE_VIOLATION = "23505";
 
 export async function POST(
   request: Request,
@@ -32,6 +35,11 @@ export async function POST(
     .eq("customer_id", auth.userId)
     .maybeSingle();
   if (!trip) return error("Trip not found", 404);
+  // The expire-quotes job runs every five minutes. Reject in the gap so a
+  // stale pending row cannot become a booking.
+  if (quote.valid_until && new Date(quote.valid_until).getTime() < Date.now()) {
+    return error("quote_expired", 409);
+  }
 
   const { data: operator } = await auth.supabase
     .from("operators")
@@ -39,21 +47,12 @@ export async function POST(
     .eq("id", quote.operator_id)
     .single();
 
+  let nextTripStatus: TripStatus;
   try {
-    nextStatusOnCustomerAccept(trip.status);
+    nextTripStatus = nextStatusOnCustomerAccept(trip.status);
   } catch (e) {
     return error(e instanceof Error ? e.message : "Invalid transition", 400);
   }
-
-  await auth.supabase.from("quotes").update({ status: "accepted" }).eq("id", quote.id);
-  // Fan-out can leave several pending quotes. Accepting one declines the rest
-  // and the insert below is the only booking.
-  await auth.supabase
-    .from("quotes")
-    .update({ status: "declined" })
-    .eq("trip_request_id", trip.id)
-    .eq("status", "pending")
-    .neq("id", quote.id);
 
   const snapshot = (quote.carrier_disclosure_snapshot ?? {}) as Record<string, unknown>;
 
@@ -112,6 +111,9 @@ export async function POST(
     }
   }
 
+  // Booking first. bookings_one_live_per_trip rejects a second live booking,
+  // including a concurrent accept. A failed insert leaves the quote pending
+  // and the trip on quote_received.
   const { data: booking, error: bookingError } = await auth.supabase
     .from("bookings")
     .insert({
@@ -137,30 +139,71 @@ export async function POST(
     .select("id")
     .single();
 
-  const { error: tripError } = await auth.supabase
-    .from("trip_requests")
-    .update({ status: "awaiting_payment" })
-    .eq("id", trip.id);
-
   if (bookingError || !booking) {
+    if (isUniqueViolation(bookingError)) {
+      return error("already_booked", 409);
+    }
     logError("supabase_write_failed", {
       table: "bookings",
       message: bookingError?.message ?? "Booking insert failed",
     });
-  } else if (tripError) {
+    return error("Booking could not be created", 500);
+  }
+
+  // Quote, then siblings, then the trip. A failure here is logged and left
+  // in place: the booking row is the recoverable record.
+  const { error: acceptError } = await auth.supabase
+    .from("quotes")
+    .update({ status: "accepted" })
+    .eq("id", quote.id);
+  if (acceptError) {
+    logError("supabase_write_failed", { table: "quotes", message: acceptError.message });
+  }
+
+  const { error: declineError } = await auth.supabase
+    .from("quotes")
+    .update({ status: "declined" })
+    .eq("trip_request_id", trip.id)
+    .eq("status", "pending")
+    .neq("id", quote.id);
+  if (declineError) {
+    logError("supabase_write_failed", { table: "quotes", message: declineError.message });
+  }
+
+  const { error: tripError } = await auth.supabase
+    .from("trip_requests")
+    .update({ status: nextTripStatus })
+    .eq("id", trip.id);
+  if (tripError) {
     logError("supabase_write_failed", { table: "trip_requests", message: tripError.message });
-  } else {
+  }
+
+  if (!acceptError && !declineError && !tripError) {
     enqueueNotification("quote_accepted", {
       tripId: trip.id,
       quoteId: quote.id,
       operatorId: quote.operator_id,
     });
-    const invoice = await createInvoiceForBooking(auth.supabase, booking.id);
-    if (!invoice.ok) {
-      return error("Invoice could not be created", 500);
-    }
   }
 
+  // Invoice failure leaves the booking and the awaiting_payment trip. Admin
+  // retries with adminCreateTripInvoice, which calls createInvoiceForBooking.
+  const invoice = await createInvoiceForBooking(auth.supabase, booking.id);
   const serialized = await loadTripPayload(auth.supabase, trip.id);
+  if (!serialized) return error("Trip not found", 404);
+  if (!invoice.ok) {
+    logError("invoice_create_failed", {
+      table: "invoices",
+      message: invoice.message,
+      booking_id: booking.id,
+    });
+    return json({ ...serialized, invoice: null });
+  }
+
   return json(serialized);
+}
+
+function isUniqueViolation(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  return err.code === UNIQUE_VIOLATION || (err.message ?? "").includes("bookings_one_live_per_trip");
 }
