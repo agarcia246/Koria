@@ -694,10 +694,15 @@ export async function sendQuote(tripId: string, formData: FormData) {
   await assertWrite("trip_request_operators", fanoutError, `/operator/requests/${tripId}`);
 
   if (isCounter && parentQuoteId) {
-    const { error: counterError } = await ctx.supabase
+    // status is server-owned. The operator session inserted the new quote;
+    // the service role marks the parent countered, and only when that parent
+    // belongs to this operator on this trip (the service role bypasses RLS).
+    const { error: counterError } = await createServiceClient()
       .from("quotes")
       .update({ status: "countered" })
-      .eq("id", parentQuoteId);
+      .eq("id", parentQuoteId)
+      .eq("trip_request_id", tripId)
+      .eq("operator_id", ctx.operatorId);
     await assertWrite("quotes", counterError, `/operator/requests/${tripId}`);
   }
 
