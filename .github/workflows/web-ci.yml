@@ -85,6 +85,21 @@ jobs:
             exit "$code"
           fi
 
+      - name: RLS regression suite
+        run: |
+          set +e
+          node --test 'supabase/tests/rls/**/*.test.mjs' > /tmp/rls.log 2>&1
+          code=$?
+          cat /tmp/rls.log
+          if [ "$code" -ne 0 ]; then
+            echo "::error title=RLS regression suite::$(tail -n 40 /tmp/rls.log | tr '\n' ' ' | cut -c1-800)"
+            exit "$code"
+          fi
+        env:
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+
       - name: SQL tests
         run: supabase test db
 
