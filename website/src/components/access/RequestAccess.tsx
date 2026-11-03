@@ -133,7 +133,7 @@ export function RequestAccess({
                   <p className="text-sm">
                     Something went wrong. Email{" "}
                     <a href={START_KORIA_HREF} className="underline">
-                      start@koria.travel
+                      start@flykoria.com
                     </a>{" "}
                     and we&apos;ll take it from there.
                   </p>

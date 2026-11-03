@@ -5,13 +5,13 @@ import { createServiceClient } from "@/lib/supabase/admin";
 
 /**
  * Browser forms on the marketing site. The Pages site is served from the
- * repository origin; koria.travel is the apex. Localhost is so the form can
+ * repository origin; flykoria.com is the apex. Localhost is so the form can
  * be exercised against a local API. Any other origin is not reflected.
  */
 const ALLOWED_ORIGINS = new Set([
   "https://agarcia246.github.io",
-  "https://koria.travel",
-  "https://www.koria.travel",
+  "https://flykoria.com",
+  "https://www.flykoria.com",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://127.0.0.1:3000",

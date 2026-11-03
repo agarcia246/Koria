@@ -226,7 +226,7 @@ struct TripDetailView: View {
                 row("Preferences", prefs.joined(separator: " · "))
             }
             documentsList(trip)
-            row("Support", "support@koria.travel")
+            row("Support", "support@flykoria.com")
             Text("Reference \(booking.id.uppercased())")
                 .font(KoriaFont.sans(13))
                 .foregroundStyle(koria.muted)

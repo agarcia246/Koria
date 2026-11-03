@@ -203,7 +203,7 @@ struct MockCatalog: Sendable {
         demoUser = User(
             id: "user-demo",
             name: "Alex Rivera",
-            email: "alex@koria.travel",
+            email: "alex@flykoria.com",
             accessStatus: .approved,
             termsVersionRequired: LegalLinks.version,
             termsAccepted: false
@@ -211,7 +211,7 @@ struct MockCatalog: Sendable {
 
         demoPassport = PassportProfile(
             displayName: "Alex Rivera",
-            email: "alex@koria.travel",
+            email: "alex@flykoria.com",
             photoURL: nil,
             homeAirportID: "aus",
             typicalPassengers: 4,

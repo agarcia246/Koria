@@ -3,28 +3,28 @@ import { renderTemplate } from "@/lib/email/templates";
 import type { EmailTemplate, EmailTemplateData } from "@/lib/email/types";
 
 /**
- * Resend sends from notify.koria.travel so the apex mailbox (hello@koria.travel)
- * keeps its own MX. Add the domain in Resend; do not add koria.travel itself.
+ * Resend sends from notify.flykoria.com so the apex mailbox (hello@flykoria.com)
+ * keeps its own MX. Add the domain in Resend; do not add flykoria.com itself.
  *
  * DNS for the human. Names are fully qualified. The DKIM value is generated
  * when the domain is added — copy that one string from the Resend domain page.
  * The SPF records below are the us-east-1 defaults.
  *
- *   TXT  resend._domainkey.notify.koria.travel
+ *   TXT  resend._domainkey.notify.flykoria.com
  *        <DKIM public key from the Resend domain page>
- *   MX   send.notify.koria.travel   10   feedback-smtp.us-east-1.amazonses.com
- *   TXT  send.notify.koria.travel        v=spf1 include:amazonses.com ~all
- *   TXT  _dmarc.notify.koria.travel      v=DMARC1; p=none;
+ *   MX   send.notify.flykoria.com   10   feedback-smtp.us-east-1.amazonses.com
+ *   TXT  send.notify.flykoria.com        v=spf1 include:amazonses.com ~all
+ *   TXT  _dmarc.notify.flykoria.com      v=DMARC1; p=none;
  *
  * Domains created in Resend after August 2026 may show CNAME records instead of
  * the MX + SPF TXT pair. If the domain page shows CNAMEs, add those and skip
  * the MX and SPF TXT lines. Do not proxy the CNAMEs.
  *
- * Env: RESEND_API_KEY, EMAIL_FROM (KORIA <notifications@notify.koria.travel>).
+ * Env: RESEND_API_KEY, EMAIL_FROM (KORIA <notifications@notify.flykoria.com>).
  * Both unset locally. Sending no-ops until the key is in host secrets.
  */
-export const SENDING_DOMAIN = "notify.koria.travel";
-export const DEFAULT_EMAIL_FROM = "KORIA <notifications@notify.koria.travel>";
+export const SENDING_DOMAIN = "notify.flykoria.com";
+export const DEFAULT_EMAIL_FROM = "KORIA <notifications@notify.flykoria.com>";
 
 const RESEND_URL = "https://api.resend.com/emails";
 
