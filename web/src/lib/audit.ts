@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/lib/database.types";
 import { logError } from "@/lib/log";
@@ -110,18 +111,27 @@ export async function recordAudit(client: Client, input: AuditInput): Promise<vo
       diff: sanitizeDiff(input.diff) as Json,
       request_id: input.requestId ?? null,
     });
-    if (error) {
-      logError("audit_write_failed", {
-        table: "audit_events",
-        message: error.message,
-        ...(input.requestId ? { request_id: input.requestId } : {}),
-      });
-    }
+    if (error) reportAuditFailure(error.message, input);
   } catch (err) {
-    logError("audit_write_failed", {
-      table: "audit_events",
-      message: err instanceof Error ? err.message : "audit write failed",
-      ...(input.requestId ? { request_id: input.requestId } : {}),
+    reportAuditFailure(err instanceof Error ? err.message : "audit write failed", input);
+  }
+}
+
+/**
+ * A missing audit row means admin cannot reconstruct the trip, so the
+ * failure goes to Sentry as well as the log.
+ */
+function reportAuditFailure(message: string, input: AuditInput) {
+  logError("audit_write_failed", {
+    table: "audit_events",
+    message,
+    ...(input.requestId ? { request_id: input.requestId } : {}),
+  });
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureMessage(`audit_write_failed: ${message}`, {
+      level: "error",
+      tags: { table: "audit_events", action: input.action, entity_type: input.entityType },
+      extra: { entity_id: input.entityId, request_id: input.requestId ?? null },
     });
   }
 }
