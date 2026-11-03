@@ -17,7 +17,7 @@ final class DemoAuthService: AuthServicing {
         let user = User(
             id: "user-demo",
             name: "Alex Rivera",
-            email: email.isEmpty ? "alex@koria.travel" : email,
+            email: email.isEmpty ? "alex@flykoria.com" : email,
             accessStatus: .approved,
             termsVersionRequired: LegalLinks.version,
             termsAccepted: false

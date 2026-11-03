@@ -19,9 +19,9 @@ Set these on the host. Do not commit the values.
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key.
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only service role key.
-- `NEXT_PUBLIC_SITE_URL=https://app.koria.travel` — public origin used in operator emails and invite links.
+- `NEXT_PUBLIC_SITE_URL=https://app.flykoria.com` — public origin used in operator emails and invite links.
 - `RESEND_API_KEY` — Resend API key for transactional mail.
-- `EMAIL_FROM` — from address, `KORIA <notifications@notify.koria.travel>`.
+- `EMAIL_FROM` — from address, `KORIA <notifications@notify.flykoria.com>`.
 - `KORIA_BANK_DETAILS_JSON` — JSON object of wire instructions printed on the invoice.
 - `SENTRY_DSN` — Sentry DSN. Server-side; reporting stays off when unset.
 

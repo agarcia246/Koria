@@ -125,7 +125,7 @@ export function OperatorApplication({ className }: { className?: string }) {
                   <p className="text-sm">
                     Something went wrong. Email{" "}
                     <a href={OPERATOR_APPLY_HREF} className="underline">
-                      start@koria.travel
+                      start@flykoria.com
                     </a>
                     .
                   </p>
