@@ -375,7 +375,6 @@ struct Quote: Identifiable, Hashable, Codable, Sendable {
 
 struct Booking: Identifiable, Hashable, Codable, Sendable {
     var id: String
-    // `.convertFromSnakeCase` turns `trip_id` into `tripId`, never `tripID`.
     var tripID: String
     var quoteID: String
     var status: BookingStatus
