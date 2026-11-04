@@ -127,11 +127,14 @@ struct Money: Hashable, Codable, Sendable {
         Money(amount: amount, currency: "USD")
     }
 
-    var formatted: String {
+    var formatted: String { formatted(fractionDigits: 0) }
+
+    func formatted(fractionDigits: Int) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currency
-        formatter.maximumFractionDigits = 0
+        formatter.minimumFractionDigits = fractionDigits
+        formatter.maximumFractionDigits = fractionDigits
         return formatter.string(from: NSDecimalNumber(decimal: amount)) ?? "\(currency) \(amount)"
     }
 }
@@ -291,6 +294,51 @@ struct Trip: Identifiable, Hashable, Codable, Sendable {
     var cancellationReason: String? = nil
     var cancelledBy: String? = nil
     var documents: [TripDocument] = []
+    var invoice: Invoice? = nil
+
+    /// The invoice to pay against. Nil unless the trip is waiting on a wire.
+    var payableInvoice: Invoice? {
+        guard status == .awaitingPayment, let invoice, invoice.isPayable else { return nil }
+        return invoice
+    }
+}
+
+/// Wire invoice from `invoice` on a trip payload. `number` and `amount_due` are the
+/// only keys every API version sends: a missing required key here would fail the
+/// whole trip list, so the rest stay optional.
+struct Invoice: Hashable, Codable, Sendable {
+    var number: String
+    var amountDue: Decimal
+    var currency: String?
+    /// `yyyy-MM-dd`. A String because the client's date decoder only takes timestamps.
+    var dueDate: String
+    var status: String?
+    var pdfUrl: String?
+
+    /// A void invoice has $0 due and a paid one has nothing left to wire.
+    var isPayable: Bool {
+        guard amountDue > 0 else { return false }
+        return status == nil || status == "issued" || status == "partially_paid"
+    }
+
+    /// Cents included: this is the amount a customer types into a wire.
+    var amountDueDisplay: String {
+        Money(amount: amountDue, currency: currency ?? "USD").formatted(fractionDigits: 2)
+    }
+
+    /// A calendar date, so it reads the same in every time zone.
+    var dueDateDisplay: String {
+        let utc = TimeZone(identifier: "UTC")
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.timeZone = utc
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: dueDate) else { return dueDate }
+        let formatter = DateFormatter()
+        formatter.timeZone = utc
+        formatter.dateFormat = "d MMM yyyy"
+        return formatter.string(from: date)
+    }
 }
 
 struct TripDocument: Identifiable, Hashable, Codable, Sendable {
@@ -327,8 +375,9 @@ struct Quote: Identifiable, Hashable, Codable, Sendable {
 
 struct Booking: Identifiable, Hashable, Codable, Sendable {
     var id: String
-    var tripID: String
-    var quoteID: String
+    // `.convertFromSnakeCase` turns `trip_id` into `tripId`, never `tripID`.
+    var tripId: String
+    var quoteId: String
     var status: BookingStatus
     var createdAt: Date
     var operatingCarrierLegalName: String?

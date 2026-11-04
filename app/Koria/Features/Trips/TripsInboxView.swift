@@ -1,8 +1,10 @@
+import SafariServices
 import SwiftUI
 
 struct TripsInboxView: View {
     @Environment(\.koria) private var koria
     @Environment(AppStore.self) private var store
+    @Environment(AppDependencies.self) private var dependencies
 
     var body: some View {
         ScrollView {
@@ -50,6 +52,10 @@ struct TripsInboxView: View {
         .navigationDestination(for: String.self) { id in
             TripDetailView(tripID: id)
         }
+        .task {
+            guard let trips = try? await dependencies.client.trips() else { return }
+            store.trips = trips
+        }
     }
 }
 
@@ -92,6 +98,9 @@ struct TripDetailView: View {
     @State private var isWorking = false
     @State private var errorMessage: String?
     @State private var cancelReason = ""
+    @State private var isOpeningInvoice = false
+    @State private var invoiceError: String?
+    @State private var invoicePDF: InvoicePDF?
 
     var body: some View {
         Group {
@@ -114,6 +123,10 @@ struct TripDetailView: View {
             guard let fresh = try? await dependencies.client.trip(id: tripID) else { return }
             store.upsert(fresh)
         }
+        .sheet(item: $invoicePDF) { pdf in
+            SafariView(url: pdf.url)
+                .ignoresSafeArea()
+        }
     }
 
     private func content(_ trip: Trip) -> some View {
@@ -132,6 +145,10 @@ struct TripDetailView: View {
                 }
 
                 timeline(trip)
+
+                if let invoice = trip.payableInvoice {
+                    wireInstructions(tripID: trip.id, invoice: invoice)
+                }
 
                 if trip.status == .confirmed || trip.status == .upcoming || trip.status == .awaitingPayment,
                    let booking = trip.booking {
@@ -196,6 +213,55 @@ struct TripDetailView: View {
             }
             .padding(.horizontal, KoriaSpace.lg)
             .padding(.bottom, KoriaSpace.xxl)
+        }
+    }
+
+    private func wireInstructions(tripID: String, invoice: Invoice) -> some View {
+        VStack(alignment: .leading, spacing: KoriaSpace.md) {
+            SectionLabel(text: "Wire instructions")
+            row("Invoice", invoice.number)
+            row("Amount due", invoice.amountDueDisplay)
+            row("Due", invoice.dueDateDisplay)
+            if invoice.pdfUrl == nil {
+                Text("The invoice PDF is not available yet.")
+                    .font(KoriaFont.sans(14))
+                    .foregroundStyle(koria.muted)
+            } else {
+                KoriaButton(title: "Open invoice PDF", style: .secondary, isLoading: isOpeningInvoice) {
+                    Task { await openInvoice(tripID: tripID) }
+                }
+            }
+            if let invoiceError {
+                Text(invoiceError)
+                    .font(KoriaFont.sans(14))
+                    .foregroundStyle(koria.muted)
+            }
+        }
+        .padding(KoriaSpace.lg)
+        .background(koria.surface)
+    }
+
+    /// The signed URL lasts 10 minutes, so this fetches a new one on every tap.
+    private func openInvoice(tripID: String) async {
+        isOpeningInvoice = true
+        defer { isOpeningInvoice = false }
+        do {
+            let fresh = try await dependencies.client.trip(id: tripID)
+            store.upsert(fresh)
+            guard let invoice = fresh.payableInvoice else {
+                invoiceError = nil
+                return
+            }
+            // SFSafariViewController crashes on any scheme other than http(s).
+            guard let raw = invoice.pdfUrl, let url = URL(string: raw),
+                  url.scheme == "https" || url.scheme == "http" else {
+                invoiceError = "The invoice PDF is not available yet."
+                return
+            }
+            invoiceError = nil
+            invoicePDF = InvoicePDF(url: url)
+        } catch {
+            invoiceError = error.localizedDescription
         }
     }
 
@@ -368,6 +434,21 @@ struct TripDetailView: View {
             errorMessage = error.localizedDescription
         }
     }
+}
+
+private struct InvoicePDF: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+private struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
 }
 
 struct OperatorQuoteGroup: Identifiable {

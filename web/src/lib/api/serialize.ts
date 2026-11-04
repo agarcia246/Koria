@@ -150,8 +150,11 @@ export type TripDocumentPayload = {
 export type TripInvoicePayload = {
   number: string;
   amount_due: number;
+  currency: string;
   due_date: string;
+  status: string;
   bank_details: unknown;
+  pdf_url: string | null;
 };
 
 export function serializeTrip(

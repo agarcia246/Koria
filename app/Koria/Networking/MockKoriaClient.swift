@@ -135,8 +135,8 @@ final class MockKoriaClient: KoriaClient {
         let listing = trip.aircraftID.flatMap { catalog.listing(id: $0) }
         let booking = Booking(
             id: "bkg-\(UUID().uuidString.prefix(8).lowercased())",
-            tripID: trip.id,
-            quoteID: quote.id,
+            tripId: trip.id,
+            quoteId: quote.id,
             status: .pending,
             createdAt: Date(),
             operatingCarrierLegalName: listing?.operatorProfile.legalName ?? listing?.operatorProfile.name,
@@ -152,6 +152,14 @@ final class MockKoriaClient: KoriaClient {
         )
         trip.status = .awaitingPayment
         trip.booking = booking
+        trip.invoice = Invoice(
+            number: "KOR-2026-000001",
+            amountDue: quote.customerTotal ?? 0,
+            currency: quote.currency,
+            dueDate: Self.mockDueDate(),
+            status: "issued",
+            pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+        )
         store.upsert(trip)
         return trip
     }
@@ -171,6 +179,12 @@ final class MockKoriaClient: KoriaClient {
         return quote
     }
 
+    private static func mockDueDate() -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate]
+        return formatter.string(from: Date().addingTimeInterval(2 * 24 * 60 * 60))
+    }
+
     func cancelTrip(id: String, reason: String) async throws -> Trip {
         try await pause(280)
         let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -180,6 +194,7 @@ final class MockKoriaClient: KoriaClient {
         guard allowed.contains(trip.status) else { throw KoriaError.invalidQuery("This trip cannot be cancelled.") }
         trip.status = .cancelled
         trip.cancellationReason = trimmed
+        trip.invoice = nil
         if var booking = trip.booking {
             booking.status = .cancelled
             trip.booking = booking

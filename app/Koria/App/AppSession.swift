@@ -24,26 +24,52 @@ final class AppSession {
     var isRestored = false
     var accessPending = false
 
+    /// Runs on every sign-out, whatever caused it.
+    @ObservationIgnored var onSignOut: (() -> Void)?
+
+    private static let launchedKey = "session.launched"
+    private let auth: any AuthServicing
+
     var isAuthenticated: Bool { user != nil }
     var isApproved: Bool {
         if AppConfig.useMock { return true }
         return user?.accessStatus == .approved || user?.accessStatus == .invited
     }
 
-    func restore() {
+    init(auth: any AuthServicing) {
+        self.auth = auth
+    }
+
+    /// The last known user. Only the session says who is signed in; this adds the
+    /// access status, which the session does not carry, until `/me` answers.
+    static func cachedUser() -> User? {
+        guard let data = KeychainStore.get(KeychainStore.userKey)?.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(User.self, from: data)
+    }
+
+    func restore() async {
         defer { isRestored = true }
-        guard KeychainStore.get(KeychainStore.tokenKey) != nil,
-              let data = KeychainStore.get(KeychainStore.userKey)?.data(using: .utf8),
-              let user = try? JSONDecoder().decode(User.self, from: data)
-        else { return }
+        // Older builds kept a copy of the access token here.
+        KeychainStore.delete(KeychainStore.tokenKey)
+        // Keychain items survive deleting the app and UserDefaults do not, so a
+        // reinstall would otherwise come back signed in.
+        if !UserDefaults.standard.bool(forKey: Self.launchedKey) {
+            UserDefaults.standard.set(true, forKey: Self.launchedKey)
+            KeychainStore.delete(KeychainStore.userKey)
+            try? await auth.signOut()
+        }
+        guard let restored = await auth.restoreUser() else {
+            KeychainStore.delete(KeychainStore.userKey)
+            return
+        }
+        let user = Self.cachedUser().flatMap { $0.id == restored.id ? $0 : nil } ?? restored
         self.user = user
         accessPending = !AppConfig.useMock && user.accessStatus != .approved && user.accessStatus != .invited
     }
 
-    func signIn(user: User, token: String) {
+    func signIn(user: User) {
         self.user = user
         accessPending = !AppConfig.useMock && user.accessStatus != .approved && user.accessStatus != .invited
-        KeychainStore.set(token, key: KeychainStore.tokenKey)
         if let data = try? JSONEncoder().encode(user), let raw = String(data: data, encoding: .utf8) {
             KeychainStore.set(raw, key: KeychainStore.userKey)
         }
@@ -60,15 +86,18 @@ final class AppSession {
     }
 
     func signInDemo() {
-        signIn(user: MockCatalog.shared.demoUser, token: "demo-token")
+        signIn(user: MockCatalog.shared.demoUser)
     }
 
     func signOut() {
         user = nil
         selectedTab = .fly
         accessPending = false
-        KeychainStore.delete(KeychainStore.tokenKey)
         KeychainStore.delete(KeychainStore.userKey)
+        onSignOut?()
+        // The SDK session is what restore() reads, so it has to go too.
+        let auth = auth
+        Task { try? await auth.signOut() }
     }
 }
 
@@ -85,10 +114,12 @@ final class AppDependencies {
 
     init() {
         let store = AppStore()
-        let session = AppSession()
-        let catalog = MockCatalog.shared
         let useMock = AppConfig.useMock
+        let auth: any AuthServicing = useMock ? DemoAuthService() : SupabaseAuthService()
+        let session = AppSession(auth: auth)
+        let catalog = MockCatalog.shared
         self.store = store
+        self.auth = auth
         self.session = session
         self.catalog = catalog
         self.useMock = useMock
@@ -96,15 +127,18 @@ final class AppDependencies {
         if useMock {
             let client = MockKoriaClient(catalog: catalog, store: store)
             self.client = client
-            self.auth = DemoAuthService()
             self.search = SearchViewModel(client: client, catalog: catalog)
         } else {
             let live = LiveKoriaClient(
                 baseURL: AppConfig.apiBaseURL,
-                tokenProvider: { KeychainStore.get(KeychainStore.tokenKey) }
+                tokenProvider: { try await auth.accessToken() },
+                tokenRefresher: { try await auth.refreshAccessToken() }
             )
+            // Still unauthorized after a refresh means the session is gone. Drop
+            // it so RootView shows sign-in instead of every screen failing.
+            live.onUnauthorized = { [weak session] in session?.signOut() }
+            session.onSignOut = { [weak store] in store?.clearAccountData() }
             self.client = live
-            self.auth = SupabaseAuthService()
             self.search = SearchViewModel(client: live, catalog: catalog)
         }
 
