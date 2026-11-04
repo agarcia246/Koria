@@ -4,6 +4,7 @@ import type { Database } from "@/lib/database.types";
 /**
  * Coarse aircraft prefilter shared by search and trip fan-out.
  * SQL may only drop rows isAircraftEligible would also drop (active, seats, amenities).
+ * Wi-Fi is a preference, so it ranks results in search and filters nothing here.
  * Range and blocked windows stay in that predicate.
  */
 
@@ -25,7 +26,6 @@ void aircraftRows;
 export type CoarseAircraftRequest = {
   passengers: number;
   pets?: boolean;
-  wifi_preferred?: boolean;
   golf?: boolean;
   skis?: boolean;
   baggage?: boolean;
@@ -51,7 +51,6 @@ export function applyCoarseAircraftFilters<Q extends CoarseQuery>(
 ): Q {
   let next: CoarseQuery = query.eq("is_active", true).gte("seating", request.passengers);
   if (request.pets) next = next.eq("pets", true);
-  if (request.wifi_preferred) next = next.eq("wifi", true);
   if (request.golf) next = next.eq("golf", true);
   if (request.skis) next = next.eq("skis", true);
   if (request.baggage) next = next.gt("baggage_cu_ft", 0);

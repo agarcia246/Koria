@@ -6,7 +6,6 @@ export type EligibilityAircraft = {
   is_active: boolean;
   seating: number;
   pets: boolean;
-  wifi: boolean;
   golf: boolean;
   skis: boolean;
   baggage_cu_ft: number | null;
@@ -21,7 +20,6 @@ export type EligibilityBlock = {
 export type EligibilityRequest = {
   passengers: number;
   pets?: boolean;
-  wifi_preferred?: boolean;
   golf?: boolean;
   skis?: boolean;
   baggage?: boolean;
@@ -40,7 +38,6 @@ export function isAircraftEligible(input: {
   if (aircraft.seating < request.passengers) return false;
   if (request.distanceNm * RANGE_MARGIN > rangeNm) return false;
   if (request.pets && !aircraft.pets) return false;
-  if (request.wifi_preferred && !aircraft.wifi) return false;
   if (request.golf && !aircraft.golf) return false;
   if (request.skis && !aircraft.skis) return false;
   if (request.baggage && !(Number(aircraft.baggage_cu_ft ?? 0) > 0)) return false;
