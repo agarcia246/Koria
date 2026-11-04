@@ -66,6 +66,21 @@ async function loadAirport(client: Client, idOrCode: string) {
   return byIcao;
 }
 
+type RankedResult = {
+  _sortMode: number;
+  _sortPrice: number;
+  _paxFit: number;
+  _hasWifi: boolean;
+};
+
+/** Pricing certainty comes first, then Wi-Fi when the customer prefers it. */
+export function compareResults(a: RankedResult, b: RankedResult, wifiPreferred: boolean) {
+  if (a._sortMode !== b._sortMode) return a._sortMode - b._sortMode;
+  if (wifiPreferred && a._hasWifi !== b._hasWifi) return a._hasWifi ? -1 : 1;
+  if (a._sortPrice !== b._sortPrice) return a._sortPrice - b._sortPrice;
+  return a._paxFit - b._paxFit;
+}
+
 export async function runSearch(
   client: Client,
   customerId: string | null,
@@ -187,7 +202,6 @@ export async function runSearch(
         request: {
           passengers: body.passengers,
           pets: body.pets,
-          wifi_preferred: body.wifi_preferred,
           golf: body.golf,
           skis: body.skis,
           baggage: body.baggage,
@@ -286,11 +300,8 @@ export async function runSearch(
     }
   }
 
-  results.sort((a, b) => {
-    if (a._sortMode !== b._sortMode) return a._sortMode - b._sortMode;
-    if (a._sortPrice !== b._sortPrice) return a._sortPrice - b._sortPrice;
-    return a._paxFit - b._paxFit;
-  });
+  const wifiPreferred = Boolean(body.wifi_preferred);
+  results.sort((a, b) => compareResults(a, b, wifiPreferred));
 
   const cleaned = results.map(({ _sortMode, _sortPrice, _paxFit, _cabin, _hasWifi, _emptyLeg, ...rest }) => rest);
 
@@ -345,7 +356,6 @@ export async function searchOperatorIds(client: Client, body: SearchBody): Promi
         request: {
           passengers: body.passengers,
           pets: body.pets,
-          wifi_preferred: body.wifi_preferred,
           golf: body.golf,
           skis: body.skis,
           baggage: body.baggage,

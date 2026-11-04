@@ -75,7 +75,6 @@ describe("fan-out and search operator parity", () => {
 
     const prefs = {
       pets: false,
-      wifi_preferred: false,
       golf: false,
       skis: false,
       baggage: false,

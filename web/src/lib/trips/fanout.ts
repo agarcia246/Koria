@@ -14,7 +14,7 @@ export type FanoutInput = {
   destinationId: string;
   departAt: string;
   passengers: number;
-  prefs: Pick<EligibilityRequest, "pets" | "wifi_preferred" | "golf" | "skis" | "baggage">;
+  prefs: Pick<EligibilityRequest, "pets" | "golf" | "skis" | "baggage">;
   aircraftId?: string | null;
 };
 
@@ -45,7 +45,6 @@ export async function eligibleOperatorIds(
     : applyCoarseAircraftFilters(aircraftQuery, {
         passengers: input.passengers,
         pets: input.prefs.pets,
-        wifi_preferred: input.prefs.wifi_preferred,
         golf: input.prefs.golf,
         skis: input.prefs.skis,
         baggage: input.prefs.baggage,
@@ -80,7 +79,6 @@ export async function eligibleOperatorIds(
   const request: EligibilityRequest = {
     passengers: input.passengers,
     pets: input.prefs.pets,
-    wifi_preferred: input.prefs.wifi_preferred,
     golf: input.prefs.golf,
     skis: input.prefs.skis,
     baggage: input.prefs.baggage,
