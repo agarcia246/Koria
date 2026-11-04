@@ -38,7 +38,14 @@ type Client = SupabaseClient<Database>;
 type AcceptBody = {
   error?: string;
   status?: string;
-  invoice?: { number?: string } | null;
+  invoice?: {
+    number?: string;
+    amount_due?: number;
+    currency?: string;
+    due_date?: string;
+    status?: string;
+    pdf_url?: string | null;
+  } | null;
   booking?: { id?: string; quote_id?: string } | null;
 };
 
@@ -166,6 +173,11 @@ describe("POST /api/v1/quotes/:id/accept", () => {
     expect(result.body.status).toBe("awaiting_payment");
     expect(result.body.booking?.quote_id).toBe(chosen.id);
     expect(result.body.invoice?.number).toEqual(expect.any(String));
+    expect(result.body.invoice?.amount_due).toBeGreaterThan(0);
+    expect(result.body.invoice?.currency).toBe("USD");
+    expect(result.body.invoice?.due_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.body.invoice?.status).toBe("issued");
+    expect(result.body.invoice?.pdf_url).toContain("/object/sign/invoices/");
 
     const state = await loadState(client, fx.tripId);
     expect(state.trip.status).toBe("awaiting_payment");

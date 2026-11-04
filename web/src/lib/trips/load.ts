@@ -63,15 +63,25 @@ export async function loadTripPayload(supabase: Client, tripId: string) {
   if (trip.status === "awaiting_payment" && booking) {
     const { data: row } = await supabase
       .from("invoices")
-      .select("number, amount_due, due_date, bank_details")
+      .select("number, amount_due, currency, due_date, status, bank_details, pdf_path")
       .eq("booking_id", booking.id)
       .maybeSingle();
     if (row) {
+      let pdfUrl: string | null = null;
+      if (row.pdf_path) {
+        const { data } = await supabase.storage
+          .from("invoices")
+          .createSignedUrl(row.pdf_path, DOCUMENT_URL_SECONDS);
+        pdfUrl = data?.signedUrl ?? null;
+      }
       invoice = {
         number: row.number,
         amount_due: Number(row.amount_due),
+        currency: row.currency,
         due_date: row.due_date,
+        status: row.status,
         bank_details: row.bank_details,
+        pdf_url: pdfUrl,
       };
     }
   }
