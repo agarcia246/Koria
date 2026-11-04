@@ -23,6 +23,7 @@ import { depositIsCovered } from "@/lib/payments/deposit";
 import { TRIP_STATUSES, canTransition, nextStatusOnQuoteSent } from "@/lib/trips/state";
 import { confirmTripAfterPayment } from "@/lib/trips/confirm";
 import { createInvoiceForBooking } from "@/lib/invoices/create";
+import { voidOpenInvoices } from "@/lib/invoices/void";
 import type { PricingMode, AvailabilityKind, TripStatus } from "@/lib/database.types";
 import { parseAvailabilityFile } from "@/lib/availability/parse";
 import { assertWrite } from "@/lib/portal/write";
@@ -220,7 +221,7 @@ export async function upsertPricing(aircraftId: string, formData: FormData) {
 
   const { data: existing } = await ctx.supabase
     .from("aircraft_pricing_rules")
-    .select("id")
+    .select("id, hourly_rate, minimum, per_nm, positioning_fee, mode")
     .eq("aircraft_id", aircraftId)
     .maybeSingle();
 
@@ -228,6 +229,19 @@ export async function upsertPricing(aircraftId: string, formData: FormData) {
     ? await ctx.supabase.from("aircraft_pricing_rules").update(payload).eq("id", existing.id)
     : await ctx.supabase.from("aircraft_pricing_rules").insert(payload);
   await assertWrite("aircraft_pricing_rules", error, `/operator/fleet/${aircraftId}/pricing`);
+  await recordAudit(ctx.supabase, {
+    action: "aircraft.pricing_update",
+    entityType: "aircraft",
+    entityId: aircraftId,
+    summary: "Updated aircraft pricing",
+    diff: scalarDiff(existing, {
+      hourly_rate: payload.hourly_rate,
+      minimum: payload.minimum,
+      per_nm: payload.per_nm,
+      positioning_fee: payload.positioning_fee,
+      mode: payload.mode,
+    }),
+  });
 
   revalidatePath(`/operator/fleet/${aircraftId}/pricing`);
 }
@@ -733,6 +747,13 @@ export async function declineRequest(tripId: string) {
   const service = createServiceClient();
   const { error, becameDeclined } = await declineOperatorFanout(service, tripId, ctx.operatorId);
   await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
+  await recordAudit(service, {
+    action: "trip.decline",
+    entityType: "trip_request",
+    entityId: tripId,
+    summary: "Operator declined the request",
+    diff: scalarDiff(null, { operator_id: ctx.operatorId, trip_declined: becameDeclined }),
+  });
   if (becameDeclined) {
     enqueueNotification("trip_cancelled", {
       tripId,
@@ -774,6 +795,13 @@ export async function cancelOperatorTrip(tripId: string, formData: FormData) {
       ctx.userId,
     );
     await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
+    await recordAudit(service, {
+      action: "trip.withdraw",
+      entityType: "trip_request",
+      entityId: tripId,
+      summary: `Operator withdrew its response. ${reason}`,
+      diff: scalarDiff(null, { operator_id: ctx.operatorId, trip_declined: becameDeclined }),
+    });
     if (becameDeclined) {
       enqueueNotification("trip_cancelled", {
         tripId,
@@ -816,6 +844,14 @@ export async function cancelOperatorTrip(tripId: string, formData: FormData) {
     .neq("status", "cancelled");
   await assertWrite("bookings", bookingError, `/operator/requests/${tripId}`);
   await recordCancellationRefund(service, tripId);
+  await voidOpenInvoices(service, tripId);
+  await recordAudit(service, {
+    action: "trip.cancel",
+    entityType: "trip_request",
+    entityId: tripId,
+    summary: `Operator cancelled the trip. ${reason}`,
+    diff: scalarDiff({ status: trip.status }, { status: "cancelled" }),
+  });
 
   enqueueNotification("trip_cancelled", {
     tripId,
@@ -1066,6 +1102,21 @@ export async function adminCreateOperator(formData: FormData) {
 
   await assertWrite("operators", error, returnPath);
   if (!operator) throw new Error("Failed to create operator");
+  await recordAudit(service, {
+    action: "operator.create",
+    entityType: "operator",
+    entityId: operator.id,
+    summary: `Created operator ${operator.name}`,
+    diff: scalarDiff(null, {
+      name: operator.name,
+      code: operator.code,
+      legal_name: operator.legal_name,
+      certificate_number: operator.certificate_number,
+      certificate_type: operator.certificate_type,
+      default_fee_bps: operator.default_fee_bps,
+      invite_email: inviteEmail || null,
+    }),
+  });
 
   if (inviteEmail) {
     const { data: invited, error: inviteError } = await service.auth.admin.createUser({
@@ -1609,6 +1660,9 @@ export async function adminOverrideTripStatus(tripId: string, formData: FormData
       .neq("status", "cancelled");
     await assertWrite("bookings", bookingError, returnPath);
     await recordCancellationRefund(service, tripId);
+    await voidOpenInvoices(service, tripId);
+    enqueueNotification("trip_cancelled", { tripId, reason: note, outcome: "cancelled", notify: "customer" });
+    enqueueNotification("trip_cancelled", { tripId, reason: note, outcome: "cancelled", notify: "operators" });
   } else {
     const { error } = await service.from("trip_requests").update({ status }).eq("id", tripId);
     await assertWrite("trip_requests", error, returnPath);

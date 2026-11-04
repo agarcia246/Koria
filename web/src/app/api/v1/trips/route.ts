@@ -1,4 +1,5 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
+import { recordAudit, scalarDiff } from "@/lib/audit";
 import { termsAreAccepted } from "@/lib/terms";
 import type { Json } from "@/lib/database.types";
 import { logError } from "@/lib/log";
@@ -120,6 +121,23 @@ export async function POST(request: Request) {
     });
     return error(insertError?.message ?? "Failed to create trip", 500);
   }
+
+  await recordAudit(auth.supabase, {
+    actorRole: "customer",
+    actorProfileId: auth.userId,
+    action: "trip.request",
+    entityType: "trip_request",
+    entityId: trip.id,
+    summary: "Customer requested a trip",
+    diff: scalarDiff(null, {
+      origin_id: originId,
+      destination_id: destinationId,
+      depart_at: String(body.departure_date),
+      passengers: Number(body.passengers),
+      aircraft_id: aircraftId,
+      operators_notified: eligible.operatorIds.length,
+    }),
+  });
 
   enqueueNotification("request_received", {
     tripId: trip.id,
