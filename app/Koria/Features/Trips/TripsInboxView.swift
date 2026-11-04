@@ -3,6 +3,7 @@ import SwiftUI
 struct TripsInboxView: View {
     @Environment(\.koria) private var koria
     @Environment(AppStore.self) private var store
+    @Environment(AppDependencies.self) private var dependencies
 
     var body: some View {
         ScrollView {
@@ -49,6 +50,10 @@ struct TripsInboxView: View {
         }
         .navigationDestination(for: String.self) { id in
             TripDetailView(tripID: id)
+        }
+        .task {
+            guard let trips = try? await dependencies.client.trips() else { return }
+            store.trips = trips
         }
     }
 }

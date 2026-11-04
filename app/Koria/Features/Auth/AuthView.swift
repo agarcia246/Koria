@@ -111,8 +111,8 @@ struct AuthView: View {
         isWorking = true
         defer { isWorking = false }
         do {
-            let (user, token) = try await dependencies.auth.verifyOTP(email: email, code: code)
-            session.signIn(user: user, token: token)
+            let user = try await dependencies.auth.verifyOTP(email: email, code: code)
+            session.signIn(user: user)
             if let me = try? await dependencies.client.currentUser() {
                 session.updateAccess(me.accessStatus)
             }
