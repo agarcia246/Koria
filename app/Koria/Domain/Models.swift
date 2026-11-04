@@ -313,7 +313,7 @@ struct Invoice: Hashable, Codable, Sendable {
     /// `yyyy-MM-dd`. A String because the client's date decoder only takes timestamps.
     var dueDate: String
     var status: String?
-    var pdfUrl: String?
+    var pdfURL: String?
 
     /// A void invoice has $0 due and a paid one has nothing left to wire.
     var isPayable: Bool {
@@ -376,8 +376,8 @@ struct Quote: Identifiable, Hashable, Codable, Sendable {
 struct Booking: Identifiable, Hashable, Codable, Sendable {
     var id: String
     // `.convertFromSnakeCase` turns `trip_id` into `tripId`, never `tripID`.
-    var tripId: String
-    var quoteId: String
+    var tripID: String
+    var quoteID: String
     var status: BookingStatus
     var createdAt: Date
     var operatingCarrierLegalName: String?
@@ -490,7 +490,7 @@ struct InboxNotification: Identifiable, Decodable, Hashable, Sendable {
     var title: String?
     var body: String?
     var event: String?
-    var tripRequestId: String?
+    var tripRequestID: String?
     var readAt: Date?
     var createdAt: Date
 }

@@ -135,8 +135,8 @@ final class MockKoriaClient: KoriaClient {
         let listing = trip.aircraftID.flatMap { catalog.listing(id: $0) }
         let booking = Booking(
             id: "bkg-\(UUID().uuidString.prefix(8).lowercased())",
-            tripId: trip.id,
-            quoteId: quote.id,
+            tripID: trip.id,
+            quoteID: quote.id,
             status: .pending,
             createdAt: Date(),
             operatingCarrierLegalName: listing?.operatorProfile.legalName ?? listing?.operatorProfile.name,
@@ -158,7 +158,7 @@ final class MockKoriaClient: KoriaClient {
             currency: quote.currency,
             dueDate: Self.mockDueDate(),
             status: "issued",
-            pdfUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+            pdfURL: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
         )
         store.upsert(trip)
         return trip
@@ -274,7 +274,7 @@ final class MockKoriaClient: KoriaClient {
             title: "Quote for Austin (AUS) to Cabo (SJD)",
             body: "Atelier Jet sent a quote. Open the KORIA app to review it.",
             event: "quote_sent",
-            tripRequestId: nil,
+            tripRequestID: nil,
             readAt: nil,
             createdAt: Date().addingTimeInterval(-3600)
         ),
@@ -283,7 +283,7 @@ final class MockKoriaClient: KoriaClient {
             title: "Trip confirmed · Miami (MIA) to Nassau (NAS)",
             body: "Your trip is confirmed.",
             event: "booking_confirmed",
-            tripRequestId: nil,
+            tripRequestID: nil,
             readAt: Date().addingTimeInterval(-86400),
             createdAt: Date().addingTimeInterval(-86400)
         ),

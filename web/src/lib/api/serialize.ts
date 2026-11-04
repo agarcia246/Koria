@@ -218,7 +218,7 @@ export function serializeQuote(q: QuoteRow, operatorName: string) {
     customer_total: Number(q.customer_total),
     currency: q.currency,
     valid_until: q.valid_until,
-    operator_notes: q.notes,
+    operator_notes: q.notes ?? "",
     status: q.status,
     created_at: q.created_at,
     carrier_disclosure_snapshot: q.carrier_disclosure_snapshot,

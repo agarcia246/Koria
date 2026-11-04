@@ -209,7 +209,7 @@ final class LiveKoriaClient: KoriaClient {
     private var decoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(KoriaJSONDate.decode)
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.keyDecodingStrategy = .custom(KoriaJSONKey.decode)
         return decoder
     }
 
@@ -249,6 +249,34 @@ private struct EmptyLegDTO: Decodable {
             price: price ?? PriceOffer(mode: .quoteRequired, amount: nil),
             notes: notes ?? ""
         )
+    }
+}
+
+/// Snake case to the app's camel case, keeping acronyms upper case: `trip_id` is
+/// `tripID` and `range_nm` is `rangeNM`. `.convertFromSnakeCase` gives `tripId`,
+/// which fails every model with a required ID. The encoder needs no match:
+/// `.convertToSnakeCase` already turns `tripID` into `trip_id`.
+enum KoriaJSONKey {
+    private static let acronyms = [
+        "id": "ID", "ids": "IDs", "nm": "NM", "ktas": "KTAS", "url": "URL", "urls": "URLs",
+    ]
+
+    private struct Key: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
+    static func decode(_ path: [CodingKey]) -> CodingKey {
+        guard let last = path.last else { return Key(stringValue: "") }
+        return last.intValue == nil ? Key(stringValue: camelCase(last.stringValue)) : last
+    }
+
+    static func camelCase(_ key: String) -> String {
+        let words = key.split(separator: "_").map(String.init)
+        guard let first = words.first, words.count > 1 else { return key }
+        return first + words.dropFirst().map { acronyms[$0] ?? $0.capitalized }.joined()
     }
 }
 
