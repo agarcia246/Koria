@@ -40,7 +40,6 @@ final class MockKoriaClient: KoriaClient {
             guard listing.aircraft.seating >= query.passengers else { continue }
             guard Double(listing.model.rangeNM) >= requiredRange else { continue }
             if query.pets && !(listing.aircraft.pets ?? listing.amenities.contains(where: { $0.kind == .pets })) { continue }
-            if query.wifiPreferred && !(listing.aircraft.wifi ?? listing.amenities.contains(where: { $0.kind == .wifi })) { continue }
             if query.golf && !(listing.aircraft.golf ?? listing.amenities.contains(where: { $0.kind == .golf || $0.kind == .ski })) { continue }
             if query.skis && !(listing.aircraft.skis ?? listing.amenities.contains(where: { $0.kind == .ski })) { continue }
 
