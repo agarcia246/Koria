@@ -68,7 +68,8 @@
 		B76067BB263B7DB5D2970F10 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		C9B7464A1260FACB74C7484C /* KoriaMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaMark.swift; sourceTree = "<group>"; };
 		CE0EE8ED9BB860BB60587FAF /* EmptyLegsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyLegsView.swift; sourceTree = "<group>"; };
-		CE4B194630806A1E5A275BFA /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		BA1D27A01C27759ECC4DF42C /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.Debug.xcconfig; sourceTree = "<group>"; };
+		E0B6F2F1E172DE4E50F930A3 /* Config.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.Release.xcconfig; sourceTree = "<group>"; };
 		DE00EEA90D4FDE4AD715015C /* AirportPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirportPickerView.swift; sourceTree = "<group>"; };
 		E30E7FA2575A5F37BE81AFF1 /* KoriaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoriaTheme.swift; sourceTree = "<group>"; };
 		E5B71EE53806EB2D899A046A /* InstrumentSerif-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "InstrumentSerif-Regular.ttf"; sourceTree = "<group>"; };
@@ -246,7 +247,8 @@
 				A01DD393171A1B0EDD36724B /* Features */,
 				6E53FF889A8906AED7AE34CE /* Networking */,
 				6D0F35DF14B4E1A3BB6F2A40 /* Resources */,
-				CE4B194630806A1E5A275BFA /* Config.xcconfig */,
+				BA1D27A01C27759ECC4DF42C /* Config.Debug.xcconfig */,
+				E0B6F2F1E172DE4E50F930A3 /* Config.Release.xcconfig */,
 			);
 			path = Koria;
 			sourceTree = "<group>";
@@ -459,7 +461,7 @@
 		};
 		52612E4FEEF771D9E70DBB82 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = CE4B194630806A1E5A275BFA /* Config.xcconfig */;
+			baseConfigurationReference = BA1D27A01C27759ECC4DF42C /* Config.Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -488,7 +490,7 @@
 		};
 		68DE6260085DBD892F1DFDD7 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = CE4B194630806A1E5A275BFA /* Config.xcconfig */;
+			baseConfigurationReference = E0B6F2F1E172DE4E50F930A3 /* Config.Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

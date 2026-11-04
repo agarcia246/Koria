@@ -25,10 +25,11 @@ targets:
       - path: Koria
         excludes:
           - Resources/Info.plist
-          - Config.xcconfig
+          - Config.Debug.xcconfig
+          - Config.Release.xcconfig
     configFiles:
-      Debug: Koria/Config.xcconfig
-      Release: Koria/Config.xcconfig
+      Debug: Koria/Config.Debug.xcconfig
+      Release: Koria/Config.Release.xcconfig
     dependencies:
       - package: Supabase
         product: Supabase
