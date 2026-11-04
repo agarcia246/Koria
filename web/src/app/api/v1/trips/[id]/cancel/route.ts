@@ -1,4 +1,6 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
+import { recordAudit, scalarDiff } from "@/lib/audit";
+import { voidOpenInvoices } from "@/lib/invoices/void";
 import { logError } from "@/lib/log";
 import type { TripStatus } from "@/lib/database.types";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
@@ -67,6 +69,16 @@ export async function POST(
   }
 
   await recordCancellationRefund(auth.supabase, trip.id);
+  const actor = { actorRole: "customer", actorProfileId: auth.userId };
+  await voidOpenInvoices(auth.supabase, trip.id, actor);
+  await recordAudit(auth.supabase, {
+    ...actor,
+    action: "trip.cancel",
+    entityType: "trip_request",
+    entityId: trip.id,
+    summary: `Customer cancelled the trip. ${reason}`,
+    diff: scalarDiff({ status: trip.status }, { status: "cancelled" }),
+  });
 
   enqueueNotification("trip_cancelled", {
     tripId: trip.id,

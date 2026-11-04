@@ -182,6 +182,18 @@ describe("POST /api/v1/quotes/:id/accept", () => {
     expect(booking.broker_role_disclosure).toBe(chosen.brokerRoleDisclosure);
     expect(booking.tax_rule_snapshot).toEqual(chosen.taxRuleSnapshot);
     expect(booking.estimated_block_minutes).toBe(await expectedBlockMinutes(client));
+
+    const audit = await client
+      .from("audit_events")
+      .select("action, actor_role")
+      .eq("entity_id", fx.tripId);
+    if (audit.error) throw new Error(audit.error.message);
+    expect(audit.data).toEqual(
+      expect.arrayContaining([
+        { action: "quote.accept", actor_role: "customer" },
+        { action: "invoice.create", actor_role: "system" },
+      ]),
+    );
   });
 
   dbTest("a parallel second accept loses with 409 and leaves one booking", async (client) => {

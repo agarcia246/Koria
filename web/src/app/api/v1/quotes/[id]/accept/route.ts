@@ -1,4 +1,5 @@
 import { error, isAuthContext, json, requireBearerAuth } from "@/lib/api/auth";
+import { recordAudit, scalarDiff } from "@/lib/audit";
 import type { TripStatus } from "@/lib/database.types";
 import { brokerDisclosureTextFromSnapshot } from "@/lib/disclosures";
 import { haversineNm } from "@/lib/geo";
@@ -178,6 +179,25 @@ export async function POST(
     logError("supabase_write_failed", { table: "trip_requests", message: tripError.message });
   }
 
+  await recordAudit(auth.supabase, {
+    actorRole: "customer",
+    actorProfileId: auth.userId,
+    action: "quote.accept",
+    entityType: "trip_request",
+    entityId: trip.id,
+    summary: "Customer accepted a quote",
+    diff: scalarDiff(
+      { status: trip.status },
+      {
+        status: nextTripStatus,
+        quote_id: quote.id,
+        booking_id: booking.id,
+        operator_id: quote.operator_id,
+        customer_total: Number(quote.customer_total),
+      },
+    ),
+  });
+
   if (!acceptError && !declineError && !tripError) {
     enqueueNotification("quote_accepted", {
       tripId: trip.id,
@@ -189,6 +209,17 @@ export async function POST(
   // Invoice failure leaves the booking and the awaiting_payment trip. Admin
   // retries with adminCreateTripInvoice, which calls createInvoiceForBooking.
   const invoice = await createInvoiceForBooking(auth.supabase, booking.id);
+  if (invoice.ok) {
+    await recordAudit(auth.supabase, {
+      actorRole: "system",
+      actorProfileId: null,
+      action: "invoice.create",
+      entityType: "trip_request",
+      entityId: trip.id,
+      summary: `Created invoice ${invoice.number}`,
+      diff: scalarDiff(null, { invoice_id: invoice.invoiceId, number: invoice.number, status: "issued" }),
+    });
+  }
   const serialized = await loadTripPayload(auth.supabase, trip.id);
   if (!serialized) return error("Trip not found", 404);
   if (!invoice.ok) {
