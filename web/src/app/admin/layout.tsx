@@ -57,7 +57,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </form>
       </aside>
       <main className="flex-1 p-8 overflow-auto">
-        <PortalFlash message={flash} />
+        <PortalFlash key={flash} message={flash} />
         {children}
       </main>
     </div>

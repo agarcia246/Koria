@@ -5,6 +5,17 @@ import { logError } from "@/lib/log";
 
 type WriteError = { message: string } | null;
 
+/** Send the operator back with a message. For refused requests, not failures. */
+export async function rejectWithFlash(message: string, returnPath: string): Promise<never> {
+  const jar = await cookies();
+  jar.set("portal_error", encodeURIComponent(message), {
+    path: "/",
+    maxAge: 30,
+    sameSite: "lax",
+  });
+  redirect(returnPath);
+}
+
 /**
  * Log a failed Supabase write, report it, and send the operator back to the
  * form with the database message. No-ops when the write succeeded.
