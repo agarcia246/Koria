@@ -12,6 +12,13 @@ final class AppStore {
         self.passport = MockCatalog.shared.demoPassport
     }
 
+    /// Live data belongs to the signed-in account and must not outlive it.
+    func clearAccountData() {
+        trips = []
+        quotes = []
+        passport = MockCatalog.shared.demoPassport
+    }
+
     func upsert(_ trip: Trip) {
         if let index = trips.firstIndex(where: { $0.id == trip.id }) {
             trips[index] = trip

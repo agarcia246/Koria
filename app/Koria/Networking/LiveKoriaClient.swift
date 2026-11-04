@@ -4,12 +4,23 @@ import Foundation
 final class LiveKoriaClient: KoriaClient {
     var baseURL: URL
     var session: URLSession
-    var tokenProvider: () -> String?
+    /// Called before every request. Refreshes an expired JWT, so it can throw.
+    var tokenProvider: () async throws -> String?
+    /// Called once when the API answers 401 to a token that still looked valid.
+    var tokenRefresher: () async throws -> String?
+    /// Called when a request is still unauthorized after the refresh attempt.
+    var onUnauthorized: (@MainActor () -> Void)?
 
-    init(baseURL: URL, session: URLSession = .shared, tokenProvider: @escaping () -> String? = { nil }) {
+    init(
+        baseURL: URL,
+        session: URLSession = .shared,
+        tokenProvider: @escaping () async throws -> String? = { nil },
+        tokenRefresher: @escaping () async throws -> String? = { nil }
+    ) {
         self.baseURL = baseURL
         self.session = session
         self.tokenProvider = tokenProvider
+        self.tokenRefresher = tokenRefresher
     }
 
     func searchAirports(query: String) async throws -> [Airport] {
@@ -83,10 +94,7 @@ final class LiveKoriaClient: KoriaClient {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         applyHeaders(&request)
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw KoriaError.network("Invalid response.")
-        }
+        let (data, http) = try await authorizedData(for: request)
         if (200...299).contains(http.statusCode) { return data }
         throw apiError(data: data, status: http.statusCode)
     }
@@ -138,24 +146,45 @@ final class LiveKoriaClient: KoriaClient {
     private func applyHeaders(_ request: inout URLRequest) {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token = tokenProvider() ?? KeychainStore.get(KeychainStore.tokenKey) {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+
+    /// Sends `request` with the current token. The API can reject a token that has
+    /// not expired locally (clock skew, revoked session), so a 401 gets one retry
+    /// on a refreshed token. A failed refresh that was not a rejection (offline,
+    /// Auth down) stays a network error and does not sign the user out.
+    private func authorizedData(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        var request = request
+        do {
+            request.setValue(try await tokenProvider().map { "Bearer \($0)" }, forHTTPHeaderField: "Authorization")
+            var result = try await load(request)
+            if result.1.statusCode == 401 {
+                request.setValue(try await tokenRefresher().map { "Bearer \($0)" }, forHTTPHeaderField: "Authorization")
+                result = try await load(request)
+            }
+            if result.1.statusCode == 401 { throw KoriaError.unauthorized }
+            return result
+        } catch KoriaError.unauthorized {
+            await onUnauthorized?()
+            throw KoriaError.unauthorized
         }
     }
 
-    private func decode<T: Decodable>(_ request: URLRequest) async throws -> T {
+    private func load(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw KoriaError.network("Invalid response.")
         }
+        return (data, http)
+    }
+
+    private func decode<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let (data, http) = try await authorizedData(for: request)
         switch http.statusCode {
         case 200...299:
             if T.self == EmptyResponse.self, data.isEmpty {
                 return EmptyResponse() as! T
             }
             return try decoder.decode(T.self, from: data)
-        case 401:
-            throw KoriaError.unauthorized
         case 404:
             throw KoriaError.notFound
         default:
@@ -164,7 +193,6 @@ final class LiveKoriaClient: KoriaClient {
     }
 
     private func apiError(data: Data, status: Int) -> KoriaError {
-        if status == 401 { return .unauthorized }
         if status == 404 { return .notFound }
         if let payload = try? JSONDecoder().decode(APIErrorBody.self, from: data) {
             switch payload.error {
