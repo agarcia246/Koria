@@ -90,7 +90,7 @@ struct NotificationsInboxView: View {
                 items[index] = updated
             }
         }
-        if let tripID = item.tripRequestId {
+        if let tripID = item.tripRequestID {
             openTrip = tripID
         }
     }

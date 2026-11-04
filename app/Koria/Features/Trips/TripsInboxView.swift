@@ -55,6 +55,12 @@ struct TripsInboxView: View {
         .task {
             guard let trips = try? await dependencies.client.trips() else { return }
             store.trips = trips
+            for trip in trips where trip.status == .quoteReceived {
+                guard let quotes = try? await dependencies.client.quotes(tripID: trip.id) else { continue }
+                for quote in quotes {
+                    store.upsert(quote)
+                }
+            }
         }
     }
 }
@@ -122,6 +128,10 @@ struct TripDetailView: View {
         .task(id: tripID) {
             guard let fresh = try? await dependencies.client.trip(id: tripID) else { return }
             store.upsert(fresh)
+            guard let quotes = try? await dependencies.client.quotes(tripID: tripID) else { return }
+            for quote in quotes {
+                store.upsert(quote)
+            }
         }
         .sheet(item: $invoicePDF) { pdf in
             SafariView(url: pdf.url)
@@ -222,7 +232,7 @@ struct TripDetailView: View {
             row("Invoice", invoice.number)
             row("Amount due", invoice.amountDueDisplay)
             row("Due", invoice.dueDateDisplay)
-            if invoice.pdfUrl == nil {
+            if invoice.pdfURL == nil {
                 Text("The invoice PDF is not available yet.")
                     .font(KoriaFont.sans(14))
                     .foregroundStyle(koria.muted)
@@ -253,7 +263,7 @@ struct TripDetailView: View {
                 return
             }
             // SFSafariViewController crashes on any scheme other than http(s).
-            guard let raw = invoice.pdfUrl, let url = URL(string: raw),
+            guard let raw = invoice.pdfURL, let url = URL(string: raw),
                   url.scheme == "https" || url.scheme == "http" else {
                 invoiceError = "The invoice PDF is not available yet."
                 return
