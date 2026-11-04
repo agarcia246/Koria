@@ -23,6 +23,11 @@ export function assertTransition(from: TripStatus, to: TripStatus): void {
   }
 }
 
+/** Operators may quote or decline only until the customer accepts a quote. */
+export function isOpenForOperatorResponse(status: TripStatus): boolean {
+  return status === "requested" || status === "quote_received";
+}
+
 export function nextStatusOnQuoteSent(current: TripStatus): TripStatus {
   if (current === "requested") return "quote_received";
   return current;

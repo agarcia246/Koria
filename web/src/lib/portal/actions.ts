@@ -20,13 +20,14 @@ import { declineOperatorFanout, markFanoutQuoted } from "@/lib/trips/fanout";
 import { recordCancellationRefund } from "@/lib/payments/refund";
 import { money, recordWirePayment, sumPaidPayments } from "@/lib/payments/record";
 import { depositIsCovered } from "@/lib/payments/deposit";
-import { TRIP_STATUSES, canTransition, nextStatusOnQuoteSent } from "@/lib/trips/state";
+import { TRIP_STATUSES, canTransition, isOpenForOperatorResponse, nextStatusOnQuoteSent } from "@/lib/trips/state";
+import { hasMatchingPendingQuote } from "@/lib/trips/quotes";
 import { confirmTripAfterPayment } from "@/lib/trips/confirm";
 import { createInvoiceForBooking } from "@/lib/invoices/create";
 import { voidOpenInvoices } from "@/lib/invoices/void";
 import type { PricingMode, AvailabilityKind, TripStatus } from "@/lib/database.types";
 import { parseAvailabilityFile } from "@/lib/availability/parse";
-import { assertWrite } from "@/lib/portal/write";
+import { assertWrite, rejectWithFlash } from "@/lib/portal/write";
 import { recordAudit, scalarDiff } from "@/lib/audit";
 
 export async function signOut() {
@@ -488,6 +489,26 @@ async function taxesForQuote(
   });
 }
 
+const TRIP_CLOSED_TO_QUOTES = "This trip is no longer open for quotes.";
+const QUOTE_ALREADY_SENT = "You already have this quote pending on the trip.";
+
+async function rejectDuplicateQuote(
+  supabase: Awaited<ReturnType<typeof requireOperatorContext>>["supabase"],
+  args: { tripId: string; operatorId: string; aircraftId: string; operatorAmount: number },
+) {
+  const returnPath = `/operator/requests/${args.tripId}`;
+  const { data, error } = await supabase
+    .from("quotes")
+    .select("aircraft_id, operator_amount, status, valid_until")
+    .eq("trip_request_id", args.tripId)
+    .eq("operator_id", args.operatorId)
+    .eq("status", "pending");
+  await assertWrite("quotes", error, returnPath);
+  if (hasMatchingPendingQuote(data ?? [], args)) {
+    await rejectWithFlash(QUOTE_ALREADY_SENT, returnPath);
+  }
+}
+
 export async function acceptPrice(tripId: string) {
   const ctx = await requireOperatorContext();
   if (!ctx.operatorId) throw new Error("No operator");
@@ -498,6 +519,9 @@ export async function acceptPrice(tripId: string) {
     .eq("id", tripId)
     .single();
   if (!trip?.aircraft_id) throw new Error("Trip has no aircraft");
+  if (!isOpenForOperatorResponse(trip.status)) {
+    await rejectWithFlash(TRIP_CLOSED_TO_QUOTES, `/operator/requests/${tripId}`);
+  }
 
   const [{ data: aircraft }, { data: origin }, { data: destination }, { data: rule }] =
     await Promise.all([
@@ -549,6 +573,12 @@ export async function acceptPrice(tripId: string) {
     returnNm: trip.return_at ? distanceNm : 0,
   });
   if (priced.amount == null) throw new Error("No live/estimated price available");
+  await rejectDuplicateQuote(ctx.supabase, {
+    tripId,
+    operatorId: ctx.operatorId,
+    aircraftId: aircraft.id,
+    operatorAmount: priced.amount,
+  });
 
   const fee = await resolvePlatformFee(ctx.supabase, {
     operatorAmount: priced.amount,
@@ -636,6 +666,9 @@ export async function sendQuote(tripId: string, formData: FormData) {
     .eq("id", tripId)
     .single();
   if (!trip) throw new Error("Trip not found");
+  if (!isOpenForOperatorResponse(trip.status)) {
+    await rejectWithFlash(TRIP_CLOSED_TO_QUOTES, `/operator/requests/${tripId}`);
+  }
 
   const aircraftId = String(formData.get("aircraft_id") || trip.aircraft_id || "");
   if (!aircraftId) throw new Error("Aircraft required");
@@ -643,6 +676,14 @@ export async function sendQuote(tripId: string, formData: FormData) {
   const operatorAmount = Number(formData.get("operator_amount"));
   const parentQuoteId = String(formData.get("parent_quote_id") || "") || null;
   const isCounter = Boolean(parentQuoteId);
+  if (!isCounter) {
+    await rejectDuplicateQuote(ctx.supabase, {
+      tripId,
+      operatorId: ctx.operatorId,
+      aircraftId,
+      operatorAmount,
+    });
+  }
 
   const [{ data: origin }, { data: destination }] = await Promise.all([
     ctx.supabase.from("airports").select("country, region").eq("id", trip.origin_id).maybeSingle(),
@@ -745,6 +786,16 @@ export async function declineRequest(tripId: string) {
   if (!ctx.operatorId) throw new Error("No operator");
 
   const service = createServiceClient();
+  const { data: trip, error: tripError } = await service
+    .from("trip_requests")
+    .select("status")
+    .eq("id", tripId)
+    .maybeSingle();
+  await assertWrite("trip_requests", tripError, `/operator/requests/${tripId}`);
+  if (!trip || !isOpenForOperatorResponse(trip.status)) {
+    await rejectWithFlash(TRIP_CLOSED_TO_QUOTES, `/operator/requests/${tripId}`);
+  }
+
   const { error, becameDeclined } = await declineOperatorFanout(service, tripId, ctx.operatorId);
   await assertWrite("trip_request_operators", error, `/operator/requests/${tripId}`);
   await recordAudit(service, {

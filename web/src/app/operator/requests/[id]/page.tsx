@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { acceptPrice, cancelOperatorTrip, declineRequest, sendQuote, uploadTripDocument } from "@/lib/portal/actions";
 import { requireOperatorContext } from "@/lib/portal/operator";
 import { resolvePlatformFee } from "@/lib/fees";
+import { isOpenForOperatorResponse } from "@/lib/trips/state";
 
 export default async function RequestDetailPage({
   params,
@@ -47,6 +48,7 @@ export default async function RequestDetailPage({
   const doSend = sendQuote.bind(null, id);
   const doCancel = cancelOperatorTrip.bind(null, id);
   const doUpload = uploadTripDocument.bind(null, id);
+  const openForResponse = isOpenForOperatorResponse(trip.status);
   const canCancel =
     trip.status === "requested" ||
     trip.status === "quote_received" ||
@@ -65,18 +67,22 @@ export default async function RequestDetailPage({
         {trip.aircraft_id ? "" : " · route request"}
       </p>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <form action={doAccept}>
-          <button type="submit" className="bg-ink text-paper px-4 py-2 text-sm">
-            Accept price
-          </button>
-        </form>
-        <form action={doDecline}>
-          <button type="submit" className="border border-ink px-4 py-2 text-sm">
-            Decline
-          </button>
-        </form>
-      </div>
+      {openForResponse ? (
+        <div className="mt-8 flex flex-wrap gap-3">
+          <form action={doAccept}>
+            <button type="submit" className="bg-ink text-paper px-4 py-2 text-sm">
+              Accept price
+            </button>
+          </form>
+          <form action={doDecline}>
+            <button type="submit" className="border border-ink px-4 py-2 text-sm">
+              Decline
+            </button>
+          </form>
+        </div>
+      ) : (
+        <p className="mt-8 text-sm text-warm">This trip is no longer open for quotes.</p>
+      )}
 
       {canCancel ? (
         <form action={doCancel} className="mt-6 space-y-3 border border-silver/40 p-4">
@@ -101,60 +107,62 @@ export default async function RequestDetailPage({
         </form>
       ) : null}
 
-      <section className="mt-10 border border-silver/40 bg-ivory p-5">
-        <h2 className="text-xs uppercase tracking-wide text-warm">Send quote / counter</h2>
-        <p className="mt-2 text-xs text-warm">
-          Fee preview on $10,000 operator amount: ${previewFee.platformFeeAmount.toFixed(2)} (
-          {previewFee.source}
-          {previewFee.bps != null ? `, ${previewFee.bps} bps` : ""})
-          . Taxes are computed from the IRS rules for this route and departure. The percentage base is the operator amount plus the platform fee.
-        </p>
-        <form action={doSend} className="mt-4 space-y-3">
-          <label className="block text-xs uppercase tracking-wide text-warm">
-            Aircraft
-            <select
-              name="aircraft_id"
-              defaultValue={trip.aircraft_id ?? ""}
-              required
-              className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
-            >
-              {(fleet ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.tail_number}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-xs uppercase tracking-wide text-warm">
-            Operator amount (USD)
-            <input
-              name="operator_amount"
-              type="number"
-              step="0.01"
-              required
-              className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
-            />
-          </label>
-          <label className="block text-xs uppercase tracking-wide text-warm">
-            Parent quote (counter)
-            <select name="parent_quote_id" className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2">
-              <option value="">— new quote —</option>
-              {(quotes ?? []).map((q) => (
-                <option key={q.id} value={q.id}>
-                  {q.id.slice(0, 8)} · ${Number(q.customer_total)} · {q.status}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-xs uppercase tracking-wide text-warm">
-            Notes
-            <textarea name="notes" className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2" />
-          </label>
-          <button type="submit" className="bg-ink text-paper px-4 py-2 text-sm">
-            Send quote
-          </button>
-        </form>
-      </section>
+      {openForResponse ? (
+        <section className="mt-10 border border-silver/40 bg-ivory p-5">
+          <h2 className="text-xs uppercase tracking-wide text-warm">Send quote / counter</h2>
+          <p className="mt-2 text-xs text-warm">
+            Fee preview on $10,000 operator amount: ${previewFee.platformFeeAmount.toFixed(2)} (
+            {previewFee.source}
+            {previewFee.bps != null ? `, ${previewFee.bps} bps` : ""})
+            . Taxes are computed from the IRS rules for this route and departure. The percentage base is the operator amount plus the platform fee.
+          </p>
+          <form action={doSend} className="mt-4 space-y-3">
+            <label className="block text-xs uppercase tracking-wide text-warm">
+              Aircraft
+              <select
+                name="aircraft_id"
+                defaultValue={trip.aircraft_id ?? ""}
+                required
+                className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
+              >
+                {(fleet ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.tail_number}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-xs uppercase tracking-wide text-warm">
+              Operator amount (USD)
+              <input
+                name="operator_amount"
+                type="number"
+                step="0.01"
+                required
+                className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2"
+              />
+            </label>
+            <label className="block text-xs uppercase tracking-wide text-warm">
+              Parent quote (counter)
+              <select name="parent_quote_id" className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2">
+                <option value="">— new quote —</option>
+                {(quotes ?? []).map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.id.slice(0, 8)} · ${Number(q.customer_total)} · {q.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-xs uppercase tracking-wide text-warm">
+              Notes
+              <textarea name="notes" className="mt-1 w-full border border-silver/50 bg-paper px-3 py-2" />
+            </label>
+            <button type="submit" className="bg-ink text-paper px-4 py-2 text-sm">
+              Send quote
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       <section className="mt-10">
         <h2 className="text-xs uppercase tracking-wide text-warm">Quotes</h2>
